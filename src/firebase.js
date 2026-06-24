@@ -1,13 +1,13 @@
 /**
- * firebase.js
+ * firebase.js — init voor Firestore + Authentication
  *
  * Waarden komen uit omgevingsvariabelen (VITE_FIREBASE_*).
- * Lokaal: maak een .env.local aan in de projectroot (zie README).
- * Netlify: stel de variabelen in via Site configuration → Environment variables.
+ * Lokaal: .env.local in de projectroot. Netlify: Environment variables.
  */
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -21,12 +21,15 @@ const firebaseConfig = {
 export const firebaseReady = !!firebaseConfig.apiKey && !String(firebaseConfig.apiKey).startsWith("undefined");
 
 let db = null;
+let auth = null;
 if (firebaseReady) {
   try {
-    db = getFirestore(initializeApp(firebaseConfig));
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
   } catch (e) {
     console.error("Firebase-init mislukt:", e);
   }
 }
 
-export { db };
+export { db, auth };
