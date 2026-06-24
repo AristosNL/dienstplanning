@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Users, CalendarDays, Settings, CalendarRange, Clock, LayoutDashboard } from "lucide-react";
-import { AppProvider } from "./AppContext";
+import { Users, CalendarDays, Settings, CalendarRange, Clock, LayoutDashboard, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { AppProvider, useApp } from "./AppContext";
 import Personeel from "./Personeel";
 import DienstPlanning from "./DienstPlanning";
 import DagPlanning from "./DagPlanning";
@@ -18,6 +18,23 @@ const NAV = [
 ];
 
 const C = { brandDk: "#1e3a8a" };
+
+function CloudBadge() {
+  const { cloud, loaded } = useApp();
+  const map = {
+    verbonden:  { Icon: Cloud,    txt: "Opgeslagen",  col: "#86efac" },
+    verbinden:  { Icon: Loader2,  txt: "Verbinden…",  col: "#93c5fd" },
+    fout:       { Icon: CloudOff, txt: "Cloud-fout",  col: "#fca5a5" },
+    lokaal:     { Icon: CloudOff, txt: "Lokaal",      col: "#cbd5e1" },
+  };
+  const s = map[cloud] || map.lokaal;
+  return (
+    <span title={s.txt} style={{ marginLeft:"auto", display:"inline-flex", alignItems:"center", gap:6,
+                                 color:s.col, fontSize:11.5, fontWeight:600 }}>
+      <s.Icon size={13}/> {loaded ? s.txt : "Laden…"}
+    </span>
+  );
+}
 
 function Shell() {
   const [page, setPage] = useState("dashboard");
@@ -43,6 +60,7 @@ function Shell() {
             <Icon size={15}/>{label}
           </button>
         ))}
+        <CloudBadge/>
       </nav>
 
       <div style={{ flex:1, overflow:"auto" }}>

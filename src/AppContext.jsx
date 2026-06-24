@@ -6,7 +6,9 @@
  *     vaardigheid "huidtherapie" toegevoegd.
  */
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db, firebaseReady } from "./firebase";
 
 const uuid  = () => crypto.randomUUID();
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -142,7 +144,10 @@ export function AppProvider({ children }) {
   const [notes,       setNotes]       = useState(INITIAL_NOTES);
   const [dienstWeekday, setDienstWeekday] = useState(INITIAL_DIENST_WEEKDAY);
   const [dienstWeekend, setDienstWeekend] = useState(INITIAL_DIENST_WEEKEND);
-  const [dienstCarry]                     = useState(INITIAL_DIENST_CARRY);
+  const [dienstCarry, setDienstCarry]     = useState(INITIAL_DIENST_CARRY);
+  const [solverUrl,   setSolverUrl]       = useState("");
+  const [loaded,      setLoaded]          = useState(false);
+  const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
 
   /* Skills CRUD */
   const addSkill    = (s)  => setSkills(p => [...p, { id:uuid(), ...s }]);
@@ -205,6 +210,63 @@ export function AppProvider({ children }) {
   const activityUsage  = (id) => Object.values(dagplanning).filter(v => v?.activityId===id);
   const staffPlanUsage = (id) => Object.keys(dagplanning).filter(k => k.split("__")[1]===id);
 
+  /* ── Firestore: laden bij start ───────────────────────────── */
+  useEffect(() => {
+    if (!firebaseReady || !db) { setLoaded(true); return; }
+    (async () => {
+      try {
+        const md = await getDoc(doc(db, "appdata", "masterdata"));
+        if (md.exists()) {
+          const d = md.data();
+          if (d.skills) setSkills(d.skills);
+          if (d.staff) setStaff(d.staff);
+          if (d.activities) setActivities(d.activities);
+        }
+        const pl = await getDoc(doc(db, "appdata", "planning"));
+        if (pl.exists()) {
+          const d = pl.data();
+          setDagplanning(d.dagplanning || {});
+          setNotes(d.notes || {});
+          setDienstWeekday(d.dienstWeekday || {});
+          setDienstWeekend(d.dienstWeekend || {});
+          if (d.dienstCarry) setDienstCarry(d.dienstCarry);
+        }
+        const st = await getDoc(doc(db, "appdata", "settings"));
+        if (st.exists() && st.data().solverUrl) setSolverUrl(st.data().solverUrl);
+        setCloud("verbonden");
+      } catch (e) {
+        console.error("Laden uit Firestore mislukt:", e);
+        setCloud("fout");
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  /* ── Firestore: opslaan bij wijziging (gedebounced) ───────── */
+  /* niet opslaan vóór de eerste load klaar is, anders overschrijf je cloud met seed */
+  const save = (id, data) => {
+    if (!firebaseReady || !db) return;
+    setDoc(doc(db, "appdata", id), data)
+      .then(() => setCloud("verbonden"))
+      .catch((e) => { console.error("Opslaan mislukt:", e); setCloud("fout"); });
+  };
+  useEffect(() => {
+    if (!loaded || !firebaseReady) return;
+    const t = setTimeout(() => save("masterdata", { skills, staff, activities }), 600);
+    return () => clearTimeout(t);
+  }, [skills, staff, activities, loaded]);
+  useEffect(() => {
+    if (!loaded || !firebaseReady) return;
+    const t = setTimeout(() => save("planning", { dagplanning, notes, dienstWeekday, dienstWeekend, dienstCarry }), 600);
+    return () => clearTimeout(t);
+  }, [dagplanning, notes, dienstWeekday, dienstWeekend, dienstCarry, loaded]);
+  useEffect(() => {
+    if (!loaded || !firebaseReady) return;
+    const t = setTimeout(() => save("settings", { solverUrl }), 600);
+    return () => clearTimeout(t);
+  }, [solverUrl, loaded]);
+
   return (
     <AppContext.Provider value={{
       skills, addSkill, updateSkill, deleteSkill, skillUsage, skillActUsage,
@@ -215,6 +277,8 @@ export function AppProvider({ children }) {
       dienstWeekday, dienstWeekend, dienstCarry,
       setWeekdayDuty, clearWeekdayDuty, setWeekendDuty, clearWeekendDuty,
       weekdayDutyCount, weekendDutyCount,
+      solverUrl, setSolverUrl,
+      loaded, cloud, firebaseReady,
       today,
     }}>
       {children}

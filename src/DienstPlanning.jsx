@@ -8,16 +8,17 @@
  * Hetzelfde datamodel wordt door dashboard en urencheck meegelezen.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
-import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useApp, ACTIVITY_COLORS, DIENST_WEEK_STARTS } from "./AppContext";
-import { useState } from "react";
+import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { useApp, ACTIVITY_COLORS } from "./AppContext";
 
 const BRAND="#1d4ed8", BRAND_DK="#1e3a8a", INK="#0f172a", MUTE="#64748b", LINE="#e2e8f0", PANEL="#f8fafc";
 const WD = ["ma","di","wo","do","vr"];
 const fmt = (iso) => iso.split("-").reverse().join("-");
 const addDays = (iso,n) => { const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const mondayOf = (iso) => { const d=new Date(iso+"T00:00:00"); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d.toISOString().slice(0,10); };
+function isoWeek(iso){ const d=new Date(iso+"T00:00:00"),t=new Date(d.valueOf());const n=(d.getDay()+6)%7;t.setDate(t.getDate()-n+3);const f=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-f)/86400000-3+((f.getDay()+6)%7))/7);}
 
 const SourceTag = ({ kind }) => {
   const m = { auto:{Icon:Bot,c:"#2563eb"}, manual:{Icon:Hand,c:"#7c3aed"}, import:{Icon:Upload,c:"#0891b2"} }[kind];
@@ -61,10 +62,17 @@ export default function DienstPlanning() {
     staff, dienstWeekday, dienstWeekend, dienstCarry,
     setWeekdayDuty, clearWeekdayDuty,
     setWeekendDuty, clearWeekendDuty, weekdayDutyCount, weekendDutyCount,
+    solverUrl, setSolverUrl,
   } = useApp();
   const [dragId, setDragId] = useState(null);
-  const [solverUrl, setSolverUrl] = useState(import.meta.env?.VITE_SOLVER_URL || "");
   const [solveStatus, setSolveStatus] = useState(null); // {state, msg}
+  const [startWeek, setStartWeek] = useState(mondayOf("2026-06-22"));
+  const [weeks, setWeeks] = useState(4);
+
+  const weekStarts = useMemo(
+    () => Array.from({ length: weeks }, (_, i) => addDays(startWeek, i * 7)),
+    [startWeek, weeks]
+  );
 
   /* inzetbare artsen op basis van vaardigheid */
   const weekdayDocs = staff.filter(s => s.skills.includes("dienst_weekdag"));
@@ -80,7 +88,7 @@ export default function DienstPlanning() {
   }, [staff]);
 
   const onDropWeekend = (date) => { if (dragId) setWeekendDuty(date, { staffId:dragId, source:"manual" }); setDragId(null); };
-  const clearWeekend  = () => DIENST_WEEK_STARTS.forEach(s => { clearWeekendDuty(addDays(s,5)); clearWeekendDuty(addDays(s,6)); });
+  const clearWeekend  = () => weekStarts.forEach(s => { clearWeekendDuty(addDays(s,5)); clearWeekendDuty(addDays(s,6)); });
 
   const generateWeekday = async () => {
     if (!solverUrl.trim()) { setSolveStatus({ state:"err", msg:"Vul eerst de solver-URL in." }); return; }
@@ -93,14 +101,14 @@ export default function DienstPlanning() {
         preferOff: s.preferOff || [],
         absences: (s.absences || []).map(a => ({ from:a.from, to:a.to, type:a.type })),
       }));
-      const body = { start: DIENST_WEEK_STARTS[0], weeks: DIENST_WEEK_STARTS.length, doctors };
+      const body = { start: startWeek, weeks, doctors };
       const resp = await fetch(solverUrl.trim().replace(/\/$/, "") + "/solve-weekday", {
         method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body),
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
       if (!data.feasible) { setSolveStatus({ state:"err", msg:`Geen oplossing mogelijk (${data.status}).` }); return; }
-      DIENST_WEEK_STARTS.forEach(st => { for (let i=0;i<5;i++) clearWeekdayDuty(addDays(st, i)); });
+      weekStarts.forEach(st => { for (let i=0;i<5;i++) clearWeekdayDuty(addDays(st, i)); });
       Object.entries(data.assignments).forEach(([date, sid]) => setWeekdayDuty(date, { staffId:sid, source:"auto" }));
       setSolveStatus({ state:"ok", msg:`Berekend — status ${data.status}.` });
     } catch (e) {
@@ -122,11 +130,34 @@ export default function DienstPlanning() {
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <CalendarDays size={22}/>
           <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Dienstplanning</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>v2</span>
+          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>v3</span>
         </div>
         <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Weekdienst automatisch (CP-SAT) · weekenddienst handmatig · gescheiden saldi
         </p>
+      </div>
+
+      {/* periode-kiezer */}
+      <div style={{ padding:"14px 20px 0", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+        <button onClick={()=>setStartWeek(addDays(startWeek, -7*weeks))} style={navBtn}><ChevronLeft size={16}/></button>
+        <div style={{ textAlign:"center", minWidth:230 }}>
+          <div style={{ fontWeight:700, fontSize:15, color:INK }}>
+            week {isoWeek(startWeek)} — {isoWeek(weekStarts[weeks-1])} · 2026
+          </div>
+          <div style={{ fontSize:12, color:MUTE }}>{fmt(startWeek)} t/m {fmt(addDays(weekStarts[weeks-1],4))}</div>
+        </div>
+        <button onClick={()=>setStartWeek(addDays(startWeek, 7*weeks))} style={navBtn}><ChevronRight size={16}/></button>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:8 }}>
+          <label style={{ fontSize:12.5, color:MUTE }}>vanaf</label>
+          <input type="date" value={startWeek} onChange={e=>e.target.value && setStartWeek(mondayOf(e.target.value))}
+            style={{ borderRadius:6, border:`1px solid ${LINE}`, padding:"6px 8px", fontSize:12.5 }}/>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <label style={{ fontSize:12.5, color:MUTE }}>weken</label>
+          <input type="number" min={1} max={26} value={weeks}
+            onChange={e=>setWeeks(Math.min(26, Math.max(1, +e.target.value || 1)))}
+            style={{ width:60, borderRadius:6, border:`1px solid ${LINE}`, padding:"6px 8px", fontSize:13 }}/>
+        </div>
       </div>
 
       <div style={{ padding:20, display:"grid", gap:18, gridTemplateColumns:"minmax(0,1fr)" }}>
@@ -168,7 +199,7 @@ export default function DienstPlanning() {
                 </tr>
               </thead>
               <tbody>
-                {DIENST_WEEK_STARTS.map((start, w) => (
+                {weekStarts.map((start, w) => (
                   <tr key={w} style={{ borderBottom:`1px solid ${LINE}` }}>
                     <td style={{ padding:"7px 6px", fontSize:11.5, color:MUTE, whiteSpace:"nowrap" }}>
                       <span style={{ fontWeight:700, color:INK }}>wk {w+1}</span><br/>{fmt(start)}
@@ -251,7 +282,7 @@ export default function DienstPlanning() {
                   </tr>
                 </thead>
                 <tbody>
-                  {DIENST_WEEK_STARTS.map((start, w) => (
+                  {weekStarts.map((start, w) => (
                     <tr key={w} style={{ borderBottom:`1px solid ${LINE}` }}>
                       <td style={{ padding:"7px 6px", fontSize:11.5, color:MUTE }}>
                         <span style={{ fontWeight:700, color:INK }}>wk {w+1}</span>
@@ -311,3 +342,9 @@ export default function DienstPlanning() {
     </div>
   );
 }
+
+const navBtn = {
+  display:"inline-flex", alignItems:"center", justifyContent:"center",
+  width:34, height:34, borderRadius:8, border:`1px solid ${LINE}`,
+  background:"#fff", color:MUTE, cursor:"pointer",
+};
