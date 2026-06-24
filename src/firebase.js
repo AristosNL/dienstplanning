@@ -1,24 +1,25 @@
 /**
  * firebase.js
  *
- * Firebase web-config. Deze waarden zijn GEEN geheim — het is client-config
- * en mag in de repo staan. Beveiliging regel je via Firestore security rules.
+ * Waarden komen uit omgevingsvariabelen (VITE_FIREBASE_*).
+ * Lokaal: maak een .env.local aan in de projectroot (zie README).
+ * Netlify: stel de variabelen in via Site configuration → Environment variables.
  */
- 
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
- 
+
 const firebaseConfig = {
-  apiKey:            "AIzaSyBrCxcwAhkddiYjvkTmGUEnOfBlddi5xgw",
-  authDomain:        "dienstplanning-2aabc.firebaseapp.com",
-  projectId:         "dienstplanning-2aabc",
-  storageBucket:     "dienstplanning-2aabc.firebasestorage.app",
-  messagingSenderId: "211304240402",
-  appId:             "1:211304240402:web:a8d9baf76b356274e28fcb",
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
- 
-export const firebaseReady = !String(firebaseConfig.apiKey).startsWith("PLAK_HIER");
- 
+
+export const firebaseReady = !!firebaseConfig.apiKey && !String(firebaseConfig.apiKey).startsWith("undefined");
+
 let db = null;
 if (firebaseReady) {
   try {
@@ -27,6 +28,5 @@ if (firebaseReady) {
     console.error("Firebase-init mislukt:", e);
   }
 }
- 
+
 export { db };
- 
