@@ -13,7 +13,7 @@
  * - Bijzonderheden: vrije notities per week
  */
 
-import { useState, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Bot, Hand, Upload,
   AlertTriangle, X, Plus, Trash2, StickyNote, Sun, Sunset,
@@ -34,6 +34,7 @@ const DAYS_SH = ["ma","di","wo","do","vr"];
 const PERIODS = ["AM","PM"];
 const PER_LBL = { AM:"Mo", PM:"Mi" };       // ochtend / middag, zoals in het papieren rooster
 const WD_MAP  = ["zo","ma","di","wo","do","vr","za"]; // JS getDay → code
+const FIXED_DAY_IDX = { ma:0, di:1, wo:2, do:3, vr:4 }; // fixedOff code → dagIdx (za/zo niet in grid)
 
 /* speciale niet-activiteit statussen */
 const STATUS = {
@@ -64,10 +65,10 @@ function isoWeek(isoStr) {
 }
 
 /* ── inzetbaarheidscheck ──────────────────────────────────────── */
-/* restrictedActs = Set van activity-ids waaraan minstens één persoon
-   gekoppeld is. Voor zulke activiteiten mag alleen een gekoppelde
-   persoon ingepland worden; ongekoppelde activiteiten staan vrij. */
-function checkEmployability(staff, dateStr, period, activity, restrictedActs) {
+/* Person-centric: iemand met een lege activityIds-lijst is vrij inzetbaar
+   op alles. Heeft iemand WEL koppelingen, dan is elke andere activiteit
+   een hard conflict. */
+function checkEmployability(staff, dateStr, period, activity) {
   const hard = [];
   const soft = [];
   const wd = WD_MAP[new Date(dateStr+"T00:00:00").getDay()];
@@ -79,8 +80,8 @@ function checkEmployability(staff, dateStr, period, activity, restrictedActs) {
       break;
     }
   }
-  if (activity && restrictedActs.has(activity.id) && !staff.activityIds?.includes(activity.id)) {
-    hard.push("Niet gekoppeld aan deze activiteit");
+  if (activity && (staff.activityIds?.length > 0) && !staff.activityIds.includes(activity.id)) {
+    hard.push("Activiteit niet gekoppeld aan persoon");
   }
   if (activity?.periods && !activity.periods.includes(period)) {
     hard.push(`Niet in ${period==="AM" ? "ochtend" : "middag"}`);
@@ -222,9 +223,21 @@ export default function DagPlanning() {
   const dagActs = activities.filter(a => a.kind !== "dienst");
   const actById = Object.fromEntries(activities.map(a => [a.id, a]));
 
-  /* activiteiten waaraan iemand gekoppeld is -> die zijn restricted */
-  const restrictedActs = new Set();
-  staff.forEach(s => (s.activityIds || []).forEach(id => restrictedActs.add(id)));
+  /* auto-fill "VRIJ" voor vaste vrije dagen bij weekwisseling */
+  useEffect(() => {
+    staff.forEach(s => {
+      (s.fixedOff || []).forEach(wd => {
+        const dayIdx = FIXED_DAY_IDX[wd];
+        if (dayIdx === undefined) return; // za/zo niet in grid
+        PERIODS.forEach(period => {
+          const k = `${weekStart}__${s.id}__${dayIdx}__${period}`;
+          if (!dagplanning[k]) {
+            setDagAssign(k, { activityId: "VRIJ", source: "auto" });
+          }
+        });
+      });
+    });
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
   const weekKey = weekStart;
   const dateOf  = (dayIdx) => addDays(weekStart, dayIdx);
   const keyOf   = (sid, dayIdx, period) => `${weekKey}__${sid}__${dayIdx}__${period}`;
@@ -356,7 +369,7 @@ export default function DagPlanning() {
                         const act = asg && asg.activityId!=="VRIJ" && asg.activityId!=="X" ? actById[asg.activityId] : null;
                         let conflict = "", soft = "";
                         if (asg && act) {
-                          const r = checkEmployability(s, dateOf(dayIdx), period, act, restrictedActs);
+                          const r = checkEmployability(s, dateOf(dayIdx), period, act);
                           conflict = r.hard.join(", ");
                           soft = r.soft.join(", ");
                         }

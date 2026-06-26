@@ -24,7 +24,7 @@ const C = {
   ok:"#16a34a", err:"#dc2626", warn:"#d97706",
 };
 
-const ACT_CATS   = ["Klinisch", "Secretarieel", "Opleiding", "Dienst"];
+const ACT_CATS   = ["Klinisch", "Arts", "PA", "DA", "Secretarieel", "Opleiding", "Dienst"];
 const PERIODS    = ["AM", "PM"];
 const PERIOD_LBL = { AM:"Ochtend", PM:"Middag" };
 const KINDS = [
