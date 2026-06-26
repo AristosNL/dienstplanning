@@ -64,7 +64,10 @@ function isoWeek(isoStr) {
 }
 
 /* ── inzetbaarheidscheck ──────────────────────────────────────── */
-function checkEmployability(staff, dateStr, period, activity, skills) {
+/* restrictedActs = Set van activity-ids waaraan minstens één persoon
+   gekoppeld is. Voor zulke activiteiten mag alleen een gekoppelde
+   persoon ingepland worden; ongekoppelde activiteiten staan vrij. */
+function checkEmployability(staff, dateStr, period, activity, restrictedActs) {
   const hard = [];
   const soft = [];
   const wd = WD_MAP[new Date(dateStr+"T00:00:00").getDay()];
@@ -76,9 +79,8 @@ function checkEmployability(staff, dateStr, period, activity, skills) {
       break;
     }
   }
-  if (activity?.skillId && !staff.skills?.includes(activity.skillId)) {
-    const sk = skills.find(s => s.id === activity.skillId);
-    hard.push(`Mist vaardigheid: ${sk ? sk.label : activity.skillId}`);
+  if (activity && restrictedActs.has(activity.id) && !staff.activityIds?.includes(activity.id)) {
+    hard.push("Niet gekoppeld aan deze activiteit");
   }
   if (activity?.periods && !activity.periods.includes(period)) {
     hard.push(`Niet in ${period==="AM" ? "ochtend" : "middag"}`);
@@ -212,11 +214,17 @@ function Notes({ weekKey }) {
 
 /* ── Hoofdcomponent ───────────────────────────────────────────── */
 export default function DagPlanning() {
-  const { staff, activities, skills, dagplanning, setDagAssign, clearDagAssign } = useApp();
-  const [weekStart, setWeekStart] = useState(mondayOf("2026-06-22"));
+  const { staff, activities, dagplanning, setDagAssign, clearDagAssign } = useApp();
+  const [weekStart, setWeekStart] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
   const [drag, setDrag] = useState(null); // { type:"activity"|"status", id }
 
+  /* alleen dag-activiteiten in palet/grid; dienst-activiteiten horen hier niet */
+  const dagActs = activities.filter(a => a.kind !== "dienst");
   const actById = Object.fromEntries(activities.map(a => [a.id, a]));
+
+  /* activiteiten waaraan iemand gekoppeld is -> die zijn restricted */
+  const restrictedActs = new Set();
+  staff.forEach(s => (s.activityIds || []).forEach(id => restrictedActs.add(id)));
   const weekKey = weekStart;
   const dateOf  = (dayIdx) => addDays(weekStart, dayIdx);
   const keyOf   = (sid, dayIdx, period) => `${weekKey}__${sid}__${dayIdx}__${period}`;
@@ -262,7 +270,7 @@ export default function DagPlanning() {
             style={navBtn}><ChevronLeft size={16}/></button>
           <div style={{ textAlign:"center", minWidth:230 }}>
             <div style={{ fontWeight:700, fontSize:15, color:C.ink }}>
-              2026 — week {isoWeek(weekStart)}
+              {weekStart.slice(0,4)} — week {isoWeek(weekStart)}
             </div>
             <div style={{ fontSize:12, color:C.mute }}>
               {fmtNL(weekStart)} t/m {fmtNL(addDays(weekStart,4))}
@@ -279,7 +287,7 @@ export default function DagPlanning() {
             PALET — sleep naar een cel
           </p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-            {activities.map(a => {
+            {dagActs.map(a => {
               const col = ACTIVITY_COLORS[a.colorIdx ?? 0];
               return (
                 <PaletteChip key={a.id} label={a.code || a.label} bg={col.bg} ink={col.ink} border={col.border}
@@ -348,7 +356,7 @@ export default function DagPlanning() {
                         const act = asg && asg.activityId!=="VRIJ" && asg.activityId!=="X" ? actById[asg.activityId] : null;
                         let conflict = "", soft = "";
                         if (asg && act) {
-                          const r = checkEmployability(s, dateOf(dayIdx), period, act, skills);
+                          const r = checkEmployability(s, dateOf(dayIdx), period, act, restrictedActs);
                           conflict = r.hard.join(", ");
                           soft = r.soft.join(", ");
                         }
@@ -379,7 +387,7 @@ export default function DagPlanning() {
           <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Upload size={12} color="#0891b2"/> import</span>
           <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Hand size={12} color="#7c3aed"/> handmatig</span>
           <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><Bot size={12} color="#2563eb"/> automatisch</span>
-          <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><AlertTriangle size={12} color={C.err}/> hard conflict (vrije dag / vakantie / vaardigheid)</span>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><AlertTriangle size={12} color={C.err}/> hard conflict (vrije dag / vakantie / koppeling)</span>
           <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ color:C.warn, fontSize:15, lineHeight:1 }}>•</span> voorkeur vrij</span>
         </div>
 

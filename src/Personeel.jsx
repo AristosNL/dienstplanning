@@ -71,8 +71,8 @@ function DayPicker({ label, selected, onChange }) {
   );
 }
 
-function SkillPicker({ selected, onChange, skills }) {
-  const cats = [...new Set(skills.map(s => s.cat))];
+function ActivityPicker({ selected, onChange, activities }) {
+  const cats = [...new Set(activities.map(a => a.cat))];
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
       {cats.map(cat => (
@@ -80,25 +80,25 @@ function SkillPicker({ selected, onChange, skills }) {
           <p style={{ fontSize:11, fontWeight:700, color:C.mute, marginBottom:5,
                       textTransform:"uppercase", letterSpacing:.5 }}>{cat}</p>
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-            {skills.filter(s => s.cat === cat).map(s => {
-              const on = selected.includes(s.id);
+            {activities.filter(a => a.cat === cat).map(a => {
+              const on = selected.includes(a.id);
               return (
-                <button key={s.id}
-                  onClick={() => onChange(on ? selected.filter(x=>x!==s.id) : [...selected,s.id])}
+                <button key={a.id}
+                  onClick={() => onChange(on ? selected.filter(x=>x!==a.id) : [...selected,a.id])}
                   style={{ fontSize:12, borderRadius:6, padding:"4px 10px", cursor:"pointer",
                     background: on ? C.brandLt : C.panel,
                     color: on ? C.brand : C.sub,
                     border: `1px solid ${on ? C.brand : C.line}`,
                     fontWeight: on ? 600 : 400 }}>
-                  {on && <Check size={11} style={{ display:"inline", marginRight:4 }}/>}{s.label}
+                  {on && <Check size={11} style={{ display:"inline", marginRight:4 }}/>}{a.label}
                 </button>
               );
             })}
           </div>
         </div>
       ))}
-      {skills.length === 0 && (
-        <p style={{ color:C.mute, fontSize:12.5 }}>Geen vaardigheden beschikbaar. Voeg ze toe via Beheer.</p>
+      {activities.length === 0 && (
+        <p style={{ color:C.mute, fontSize:12.5 }}>Geen activiteiten beschikbaar. Voeg ze toe via Beheer.</p>
       )}
     </div>
   );
@@ -174,7 +174,7 @@ function Field({ label, children }) {
   );
 }
 
-function StaffCard({ person, skills, onSave, onRequestDelete }) {
+function StaffCard({ person, activities, onSave, onRequestDelete }) {
   const [open, setOpen]   = useState(false);
   const [draft, setDraft] = useState(person);
   const [dirty, setDirty] = useState(false);
@@ -270,9 +270,12 @@ function StaffCard({ person, skills, onSave, onRequestDelete }) {
             </section>
 
             <section style={{ gridColumn:"1/-1" }}>
-              <SectionTitle icon={<Star size={14}/>}>Vaardigheden</SectionTitle>
+              <SectionTitle icon={<Star size={14}/>}>Gekoppelde activiteiten</SectionTitle>
+              <p style={{ fontSize:11.5, color:C.mute, margin:"4px 0 0" }}>
+                Selecteer waar deze persoon op ingezet mag worden. Een activiteit zonder koppelingen staat vrij voor iedereen.
+              </p>
               <div style={{ marginTop:8 }}>
-                <SkillPicker selected={draft.skills} onChange={v=>upd("skills",v)} skills={skills}/>
+                <ActivityPicker selected={draft.activityIds} onChange={v=>upd("activityIds",v)} activities={activities}/>
               </div>
             </section>
           </div>
@@ -323,7 +326,7 @@ function StatBar({ staff }) {
 }
 
 export default function Personeel() {
-  const { staff, skills, addStaff, updateStaff, deleteStaff, staffPlanUsage } = useApp();
+  const { staff, activities, addStaff, updateStaff, deleteStaff, staffPlanUsage } = useApp();
   const [filter, setFilter]   = useState("all");
   const [search, setSearch]   = useState("");
   const [toDelete, setToDelete] = useState(null); // person object
@@ -355,7 +358,7 @@ export default function Personeel() {
           <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2 }}>Personeelsbeheer</h1>
         </div>
         <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2 }}>
-          Contracturen · vrije dagen · vakanties &amp; cursussen · vaardigheden
+          Contracturen · vrije dagen · vakanties &amp; cursussen · activiteiten
         </p>
       </div>
 
@@ -400,7 +403,7 @@ export default function Personeel() {
             <StaffCard
               key={p.id}
               person={p}
-              skills={skills}
+              activities={activities}
               onSave={updateStaff}
               onRequestDelete={setToDelete}
             />
@@ -412,7 +415,7 @@ export default function Personeel() {
           <Clock size={15} color={C.brand} style={{ marginTop:1, flexShrink:0 }}/>
           <p style={{ fontSize:12, color:"#1e40af", margin:0 }}>
             <strong>Koppeling engine:</strong> elk personeelsrecord exporteert als{" "}
-            <code>Staff(id, skills, fixedOff, preferOff, carry_in)</code>.
+            <code>Staff(id, activityIds, fixedOff, preferOff, carry_in)</code>.
             Vakanties en cursussen worden omgezet naar{" "}
             <code>Avail.VACATION / Avail.COURSE</code> per datum.
           </p>

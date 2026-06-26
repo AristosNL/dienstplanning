@@ -1,9 +1,11 @@
 /**
- * AppContext.jsx — v4 — centrale masterdata + planning-state
+ * AppContext.jsx — v5 — centrale masterdata + planning-state
  *
- * v4: volledige personeelslijst uit het weekrooster, met rollen,
- *     groepering en gekoppelde vaardigheden. Rol "huidtherapeut" +
- *     vaardigheid "huidtherapie" toegevoegd.
+ * v5: vaardigheden vervallen volledig. Activiteiten worden nu rechtstreeks
+ *     aan personeelsleden gekoppeld via staff.activityIds. Een activiteit is
+ *     vrij voor iedereen zolang niemand eraan gekoppeld is; zodra >=1 persoon
+ *     gekoppeld is, mogen alleen die personen ingepland worden.
+ *     Week-/weekenddienst zijn nu activiteiten met kind:"dienst".
  */
 
 import { createContext, useContext, useState, useEffect } from "react";
@@ -13,7 +15,11 @@ import { db, firebaseReady } from "./firebase";
 const uuid  = () => crypto.randomUUID();
 export const today = () => new Date().toISOString().slice(0, 10);
 
-/* ── 10 zachte pastelkleuren ──────────────────────────────────── */
+/* vaste ids voor de twee dienst-activiteiten (DienstPlanning filtert hierop) */
+export const ACT_WEEKDAY = "act_dienst_weekdag";
+export const ACT_WEEKEND = "act_dienst_weekend";
+
+/* -- 10 zachte pastelkleuren ----------------------------------- */
 export const ACTIVITY_COLORS = [
   { bg:"#dbeafe", ink:"#1e40af", border:"#bfdbfe" },
   { bg:"#dcfce7", ink:"#166534", border:"#bbf7d0" },
@@ -27,70 +33,60 @@ export const ACTIVITY_COLORS = [
   { bg:"#f1f5f9", ink:"#334155", border:"#cbd5e1" },
 ];
 
-/* ── Groepen (volgorde = weergavevolgorde op Y-as, conform rooster) ── */
+/* -- Groepen (volgorde = weergavevolgorde op Y-as, conform rooster) -- */
 export const GROUPS = ["Secretariaat", "Assistenten", "Ondersteuning", "Artsen"];
 
-/* ── Vaardigheden ─────────────────────────────────────────────── */
-const INITIAL_SKILLS = [
-  { id:"dienst_weekdag",   label:"Weekdagdienst",         cat:"Dienst" },
-  { id:"dienst_weekend",   label:"Weekenddienst",          cat:"Dienst" },
-  { id:"poli_cardiologie", label:"Poli cardiologie",       cat:"Klinisch" },
-  { id:"poli_longen",      label:"Poli longen",            cat:"Klinisch" },
-  { id:"echo",             label:"Echo",                   cat:"Klinisch" },
-  { id:"bronchoscopie",    label:"Bronchoscopie",          cat:"Klinisch" },
-  { id:"huidtherapie",     label:"Huidtherapie",           cat:"Klinisch" },
-  { id:"brieven",          label:"Brieven / dictaat",      cat:"Secretarieel" },
-  { id:"planning_sec",     label:"Planning secretariaat",  cat:"Secretarieel" },
-  { id:"onderwijs",        label:"Onderwijs / supervisie", cat:"Opleiding" },
-];
-
-/* ── Activiteiten (korte code voor de dagplanning) ────────────── */
+/* -- Activiteiten ---------------------------------------------- */
+/* kind:"dag"    -> planbaar blok in de dagplanning (verschijnt in palet)
+   kind:"dienst" -> dienst-inzetbaarheid (week/weekend), niet in dag-palet */
 const INITIAL_ACTIVITIES = [
-  { id:"act_a1",    code:"A1",      label:"Spreekkamer A1",        cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:0, fromImport:true,  demand:1 },
-  { id:"act_a2",    code:"A2",      label:"Spreekkamer A2",        cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:1, fromImport:true,  demand:1 },
-  { id:"act_b",     code:"B",       label:"Behandelkamer B",       cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:2, fromImport:true,  demand:1 },
-  { id:"act_o",     code:"O",       label:"OK-assistentie",        cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
-  { id:"act_poli",  code:"Poli",    label:"Polikliniek",           cat:"Klinisch",     skillId:"poli_cardiologie",periods:["AM","PM"], colorIdx:5, fromImport:true,  demand:1 },
-  { id:"act_pbk",   code:"PBK",     label:"PBK",                   cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:4, fromImport:false, demand:1 },
-  { id:"act_ok",    code:"OK",      label:"Operatiekamer",         cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
-  { id:"act_cosm",  code:"Cosm",    label:"Cosmetisch spreekuur",  cat:"Klinisch",     skillId:null,              periods:["AM","PM"], colorIdx:7, fromImport:false, demand:1 },
-  { id:"act_sprtel",code:"spr/tel", label:"Spreekuur / telefoon",  cat:"Secretarieel", skillId:null,              periods:["AM","PM"], colorIdx:9, fromImport:false, demand:1 },
-  { id:"act_machtig",code:"machtig",label:"Machtigingen",          cat:"Secretarieel", skillId:null,              periods:["AM","PM"], colorIdx:8, fromImport:false, demand:1 },
-  { id:"act_huidth",code:"huidth.", label:"Huidtherapie",          cat:"Klinisch",     skillId:"huidtherapie",    periods:["AM","PM"], colorIdx:1, fromImport:false, demand:1 },
-  { id:"act_school",code:"school",  label:"School / opleiding",    cat:"Opleiding",    skillId:null,              periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
+  { id:ACT_WEEKDAY, code:"Wd",      label:"Weekdienst",            cat:"Dienst",       kind:"dienst", periods:["AM","PM"], colorIdx:0, fromImport:false, demand:1 },
+  { id:ACT_WEEKEND, code:"We",      label:"Weekenddienst",         cat:"Dienst",       kind:"dienst", periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
+
+  { id:"act_a1",    code:"A1",      label:"Spreekkamer A1",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:0, fromImport:true,  demand:1 },
+  { id:"act_a2",    code:"A2",      label:"Spreekkamer A2",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:true,  demand:1 },
+  { id:"act_b",     code:"B",       label:"Behandelkamer B",       cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:2, fromImport:true,  demand:1 },
+  { id:"act_o",     code:"O",       label:"OK-assistentie",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
+  { id:"act_poli",  code:"Poli",    label:"Polikliniek",           cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:5, fromImport:true,  demand:1 },
+  { id:"act_pbk",   code:"PBK",     label:"PBK",                   cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:4, fromImport:false, demand:1 },
+  { id:"act_ok",    code:"OK",      label:"Operatiekamer",         cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
+  { id:"act_cosm",  code:"Cosm",    label:"Cosmetisch spreekuur",  cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:7, fromImport:false, demand:1 },
+  { id:"act_sprtel",code:"spr/tel", label:"Spreekuur / telefoon",  cat:"Secretarieel", kind:"dag", periods:["AM","PM"], colorIdx:9, fromImport:false, demand:1 },
+  { id:"act_machtig",code:"machtig",label:"Machtigingen",          cat:"Secretarieel", kind:"dag", periods:["AM","PM"], colorIdx:8, fromImport:false, demand:1 },
+  { id:"act_huidth",code:"huidth.", label:"Huidtherapie",          cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:false, demand:1 },
+  { id:"act_school",code:"school",  label:"School / opleiding",    cat:"Opleiding",    kind:"dag", periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
 ];
 
-/* ── Medewerkers — volledige lijst uit het weekrooster ────────── */
-/* rol/groep zoals opgegeven; vaardigheden zijn een inschatting,
-   bij te stellen in Personeel. Contracturen/vrije dagen/vakanties
-   bewust leeg gelaten (nog in te vullen). */
-const S = (id, name, role, group, skills) => ({
+/* -- Medewerkers ----------------------------------------------- */
+/* activityIds = activiteiten waaraan deze persoon gekoppeld is.
+   Leeg laten = inzetbaar op alle vrije (ongekoppelde) activiteiten. */
+const S = (id, name, role, group, activityIds=[]) => ({
   id, name, role, group, contractHours:36,
-  fixedOff:[], preferOff:[], skills, absences:[],
+  fixedOff:[], preferOff:[], activityIds, absences:[],
 });
 
 const INITIAL_STAFF = [
-  S("cora",    "Cora",         "secretaresse", "Secretariaat", ["brieven","planning_sec"]),
+  S("cora",    "Cora",         "secretaresse", "Secretariaat"),
 
-  S("wendy",   "Wendy",        "assistent",    "Assistenten",  ["poli_cardiologie","poli_longen","echo"]),
-  S("mardy",   "Mardy",        "assistent",    "Assistenten",  ["poli_cardiologie","poli_longen","echo"]),
-  S("celsey",  "Celsey",       "assistent",    "Assistenten",  ["poli_cardiologie","poli_longen"]),
-  S("mariska", "Mariska",      "assistent",    "Assistenten",  ["poli_cardiologie","echo"]),
-  S("maaike",  "Maaike",       "assistent",    "Assistenten",  ["poli_longen","echo"]),
-  S("martine", "Martine",      "assistent",    "Assistenten",  ["poli_cardiologie","poli_longen"]),
-  S("rolendis","Rolendis",     "assistent",    "Assistenten",  ["poli_cardiologie","echo"]),
+  S("wendy",   "Wendy",        "assistent",    "Assistenten"),
+  S("mardy",   "Mardy",        "assistent",    "Assistenten"),
+  S("celsey",  "Celsey",       "assistent",    "Assistenten"),
+  S("mariska", "Mariska",      "assistent",    "Assistenten"),
+  S("maaike",  "Maaike",       "assistent",    "Assistenten"),
+  S("martine", "Martine",      "assistent",    "Assistenten"),
+  S("rolendis","Rolendis",     "assistent",    "Assistenten"),
 
-  S("francis", "Francis",      "assistent",    "Ondersteuning",["poli_longen"]),
-  S("anita",   "Anita",        "assistent",    "Ondersteuning",["poli_cardiologie"]),
-  S("liesbeth","Liesbeth",     "pa_io",        "Ondersteuning",["poli_cardiologie","poli_longen","onderwijs"]),
-  S("sanne",   "Sanne",        "huidtherapeut","Ondersteuning",["huidtherapie"]),
+  S("francis", "Francis",      "assistent",    "Ondersteuning"),
+  S("anita",   "Anita",        "assistent",    "Ondersteuning"),
+  S("liesbeth","Liesbeth",     "pa_io",        "Ondersteuning"),
+  S("sanne",   "Sanne",        "huidtherapeut","Ondersteuning", ["act_huidth"]),
 
-  S("citgez",  "Dr. Citgez",       "dokter",   "Artsen",       ["dienst_weekdag","dienst_weekend","poli_cardiologie","poli_longen","bronchoscopie","onderwijs"]),
-  S("jippes",  "Dr. Jippes",       "dokter",   "Artsen",       ["dienst_weekdag","dienst_weekend","poli_cardiologie","poli_longen","bronchoscopie","onderwijs"]),
-  S("dijkst",  "Dr. Dijksterhuis", "dokter",   "Artsen",       ["dienst_weekdag","dienst_weekend","poli_cardiologie","poli_longen","onderwijs"]),
+  S("citgez",  "Dr. Citgez",       "dokter",   "Artsen", [ACT_WEEKDAY, ACT_WEEKEND]),
+  S("jippes",  "Dr. Jippes",       "dokter",   "Artsen", [ACT_WEEKDAY, ACT_WEEKEND]),
+  S("dijkst",  "Dr. Dijksterhuis", "dokter",   "Artsen", [ACT_WEEKDAY, ACT_WEEKEND]),
 ];
 
-/* ── Demo dagplanning (week 22-06-2026), nieuwe IDs ───────────── */
+/* -- Demo dagplanning (week 22-06-2026) ------------------------ */
 const WK = "2026-06-22";
 const INITIAL_DAGPLANNING = {
   [`${WK}__cora__0__AM`]:   { activityId:"act_b",       source:"import" },
@@ -109,12 +105,10 @@ const INITIAL_NOTES = {
   ],
 };
 
-/* ── Dienst: week- en weekenddienst ───────────────────────────── */
-/* week-keys voor de 4-weekse diensthorizon (ma-data) */
+/* -- Dienst: week- en weekenddienst ---------------------------- */
 export const DIENST_WEEK_STARTS = ["2026-06-22","2026-06-29","2026-07-06","2026-07-13"];
 const _dwd = (start, off) => { const d=new Date(start+"T00:00:00"); d.setDate(d.getDate()+off); return d.toISOString().slice(0,10); };
 
-/* weekdienst = uitkomst CP-SAT engine (status OPTIMAL), per datum */
 const WEEKDAY_SOLUTION = [
   ["dijkst","dijkst","dijkst","citgez","citgez"],
   ["citgez","jippes","jippes","jippes","jippes"],
@@ -127,17 +121,39 @@ const INITIAL_DIENST_WEEKDAY = (() => {
     row.forEach((sid, i) => { o[_dwd(DIENST_WEEK_STARTS[w], i)] = { staffId: sid, source: "auto" }; }));
   return o;
 })();
-const INITIAL_DIENST_WEEKEND = {};                          // handmatig, start leeg
-const INITIAL_DIENST_CARRY = {                              // saldo-grootboek (apart!)
+const INITIAL_DIENST_WEEKEND = {};
+const INITIAL_DIENST_CARRY = {
   weekday: { citgez:12, jippes:10, dijkst:11 },
   weekend: { citgez:4,  jippes:3,  dijkst:5  },
 };
 
-/* ── Context ──────────────────────────────────────────────────── */
+/* -- Migratie: oude masterdata (met skills) -> nieuw model ----- */
+const SKILL_TO_ACT = {
+  dienst_weekdag: ACT_WEEKDAY,
+  dienst_weekend: ACT_WEEKEND,
+  huidtherapie:   "act_huidth",
+};
+function migrateStaff(list) {
+  return (list || []).map(s => {
+    if (Array.isArray(s.activityIds)) return s;            // al nieuw model
+    const activityIds = (s.skills || [])
+      .map(k => SKILL_TO_ACT[k]).filter(Boolean);
+    const { skills, ...rest } = s;
+    return { ...rest, activityIds };
+  });
+}
+function migrateActivities(list) {
+  return (list || []).map(a => {
+    const { skillId, ...rest } = a;
+    const kind = a.kind || (a.id === ACT_WEEKDAY || a.id === ACT_WEEKEND ? "dienst" : "dag");
+    return { ...rest, kind };
+  });
+}
+
+/* -- Context --------------------------------------------------- */
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [skills,      setSkills]      = useState(INITIAL_SKILLS);
   const [staff,       setStaff]       = useState(INITIAL_STAFF);
   const [activities,  setActivities]  = useState(INITIAL_ACTIVITIES);
   const [dagplanning, setDagplanning] = useState(INITIAL_DAGPLANNING);
@@ -149,20 +165,13 @@ export function AppProvider({ children }) {
   const [loaded,      setLoaded]          = useState(false);
   const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
 
-  /* Skills CRUD */
-  const addSkill    = (s)  => setSkills(p => [...p, { id:uuid(), ...s }]);
-  const updateSkill = (u)  => setSkills(p => p.map(x => x.id===u.id ? u : x));
-  const deleteSkill = (id) => {
-    setSkills(p => p.filter(x => x.id!==id));
-    setStaff(p => p.map(s => ({ ...s, skills: s.skills.filter(k => k!==id) })));
-    setActivities(p => p.map(a => a.skillId===id ? { ...a, skillId:null } : a));
-  };
-
   /* Activities CRUD */
-  const addActivity    = (a)  => setActivities(p => [...p, { id:uuid(), code:"", demand:1, fromImport:false, periods:["AM","PM"], colorIdx:0, skillId:null, ...a }]);
+  const addActivity    = (a)  => setActivities(p => [...p, { id:uuid(), code:"", demand:1, fromImport:false, periods:["AM","PM"], colorIdx:0, kind:"dag", ...a }]);
   const updateActivity = (u)  => setActivities(p => p.map(x => x.id===u.id ? u : x));
   const deleteActivity = (id) => {
     setActivities(p => p.filter(x => x.id!==id));
+    setStaff(p => p.map(s => s.activityIds?.includes(id)
+      ? { ...s, activityIds: s.activityIds.filter(a => a!==id) } : s));
     setDagplanning(p => {
       const next = { ...p };
       for (const k of Object.keys(next)) if (next[k]?.activityId === id) delete next[k];
@@ -173,7 +182,7 @@ export function AppProvider({ children }) {
   /* Staff CRUD */
   const addStaff    = ()   => setStaff(p => [...p, {
     id:uuid(), name:"", role:"assistent", group:GROUPS[0], contractHours:36,
-    fixedOff:[], preferOff:[], skills:[], absences:[],
+    fixedOff:[], preferOff:[], activityIds:[], absences:[],
   }]);
   const updateStaff = (u)  => setStaff(p => p.map(s => s.id===u.id ? u : s));
   const deleteStaff = (id) => {
@@ -205,12 +214,11 @@ export function AppProvider({ children }) {
   const deleteNote = (wk, id)        => setNotes(p => ({ ...p, [wk]: (p[wk]||[]).filter(n => n.id!==id) }));
 
   /* Impact-helpers */
-  const skillUsage     = (id) => staff.filter(s => s.skills.includes(id));
-  const skillActUsage  = (id) => activities.filter(a => a.skillId===id);
   const activityUsage  = (id) => Object.values(dagplanning).filter(v => v?.activityId===id);
+  const activityStaff  = (id) => staff.filter(s => s.activityIds?.includes(id));
   const staffPlanUsage = (id) => Object.keys(dagplanning).filter(k => k.split("__")[1]===id);
 
-  /* ── Firestore: laden bij start ───────────────────────────── */
+  /* -- Firestore: laden bij start ---------------------------- */
   useEffect(() => {
     if (!firebaseReady || !db) { setLoaded(true); return; }
     (async () => {
@@ -218,9 +226,8 @@ export function AppProvider({ children }) {
         const md = await getDoc(doc(db, "appdata", "masterdata"));
         if (md.exists()) {
           const d = md.data();
-          if (d.skills) setSkills(d.skills);
-          if (d.staff) setStaff(d.staff);
-          if (d.activities) setActivities(d.activities);
+          if (d.staff) setStaff(migrateStaff(d.staff));
+          if (d.activities) setActivities(migrateActivities(d.activities));
         }
         const pl = await getDoc(doc(db, "appdata", "planning"));
         if (pl.exists()) {
@@ -243,8 +250,7 @@ export function AppProvider({ children }) {
     })();
   }, []);
 
-  /* ── Firestore: opslaan bij wijziging (gedebounced) ───────── */
-  /* niet opslaan vóór de eerste load klaar is, anders overschrijf je cloud met seed */
+  /* -- Firestore: opslaan bij wijziging (gedebounced) -------- */
   const save = (id, data) => {
     if (!firebaseReady || !db) return;
     setDoc(doc(db, "appdata", id), data)
@@ -253,9 +259,9 @@ export function AppProvider({ children }) {
   };
   useEffect(() => {
     if (!loaded || !firebaseReady) return;
-    const t = setTimeout(() => save("masterdata", { skills, staff, activities }), 600);
+    const t = setTimeout(() => save("masterdata", { staff, activities }), 600);
     return () => clearTimeout(t);
-  }, [skills, staff, activities, loaded]);
+  }, [staff, activities, loaded]);
   useEffect(() => {
     if (!loaded || !firebaseReady) return;
     const t = setTimeout(() => save("planning", { dagplanning, notes, dienstWeekday, dienstWeekend, dienstCarry }), 600);
@@ -269,8 +275,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      skills, addSkill, updateSkill, deleteSkill, skillUsage, skillActUsage,
-      activities, addActivity, updateActivity, deleteActivity, activityUsage,
+      activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
       staff, addStaff, updateStaff, deleteStaff, staffPlanUsage,
       dagplanning, setDagAssign, clearDagAssign,
       notes, addNote, updateNote, deleteNote,

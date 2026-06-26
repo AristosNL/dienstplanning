@@ -10,8 +10,8 @@
 
 import { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
-import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
-import { useApp, ACTIVITY_COLORS } from "./AppContext";
+import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { useApp, ACTIVITY_COLORS, ACT_WEEKDAY, ACT_WEEKEND } from "./AppContext";
 
 const BRAND="#1d4ed8", BRAND_DK="#1e3a8a", INK="#0f172a", MUTE="#64748b", LINE="#e2e8f0", PANEL="#f8fafc";
 const WD = ["ma","di","wo","do","vr"];
@@ -57,6 +57,52 @@ const Th = ({ children, w }) => (
   <th style={{ color:MUTE, fontSize:11, fontWeight:600, textAlign:"center", padding:"6px 4px", width:w }}>{children}</th>
 );
 
+function exportICS(weekStarts, dienstWeekday, dienstWeekend, nameById) {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//AfdelingsPlan//NL",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+  ];
+
+  const addEvent = (dateStr, summary) => {
+    const start = dateStr.replace(/-/g, "");
+    const end   = addDays(dateStr, 1).replace(/-/g, "");
+    lines.push("BEGIN:VEVENT");
+    lines.push(`UID:afdplan-${dateStr}-${summary.replace(/\s+/g, "")}@afdelingsplan`);
+    lines.push(`DTSTART;VALUE=DATE:${start}`);
+    lines.push(`DTEND;VALUE=DATE:${end}`);
+    lines.push(`SUMMARY:${summary}`);
+    lines.push("END:VEVENT");
+  };
+
+  for (const wkStart of weekStarts) {
+    for (let i = 0; i < 5; i++) {
+      const date = addDays(wkStart, i);
+      const a = dienstWeekday[date];
+      if (a) addEvent(date, `Weekdienst: ${nameById[a.staffId] || a.staffId}`);
+    }
+    for (const off of [5, 6]) {
+      const date = addDays(wkStart, off);
+      const a = dienstWeekend[date];
+      if (a) addEvent(date, `Weekenddienst: ${nameById[a.staffId] || a.staffId}`);
+    }
+  }
+
+  lines.push("END:VCALENDAR");
+
+  const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const el   = document.createElement("a");
+  el.href     = url;
+  el.download = "dienstplanning.ics";
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+  URL.revokeObjectURL(url);
+}
+
 export default function DienstPlanning() {
   const {
     staff, dienstWeekday, dienstWeekend, dienstCarry,
@@ -66,7 +112,7 @@ export default function DienstPlanning() {
   } = useApp();
   const [dragId, setDragId] = useState(null);
   const [solveStatus, setSolveStatus] = useState(null); // {state, msg}
-  const [startWeek, setStartWeek] = useState(mondayOf("2026-06-22"));
+  const [startWeek, setStartWeek] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
   const [weeks, setWeeks] = useState(4);
 
   const weekStarts = useMemo(
@@ -74,9 +120,9 @@ export default function DienstPlanning() {
     [startWeek, weeks]
   );
 
-  /* inzetbare artsen op basis van vaardigheid */
-  const weekdayDocs = staff.filter(s => s.skills.includes("dienst_weekdag"));
-  const weekendDocs = staff.filter(s => s.skills.includes("dienst_weekend"));
+  /* inzetbare artsen op basis van koppeling aan de dienst-activiteit */
+  const weekdayDocs = staff.filter(s => s.activityIds?.includes(ACT_WEEKDAY));
+  const weekendDocs = staff.filter(s => s.activityIds?.includes(ACT_WEEKEND));
   const nameById = Object.fromEntries(staff.map(s => [s.id, s.name]));
 
   /* kleur per arts (stabiel op index in weekendlijst) */
@@ -142,7 +188,7 @@ export default function DienstPlanning() {
         <button onClick={()=>setStartWeek(addDays(startWeek, -7*weeks))} style={navBtn}><ChevronLeft size={16}/></button>
         <div style={{ textAlign:"center", minWidth:230 }}>
           <div style={{ fontWeight:700, fontSize:15, color:INK }}>
-            week {isoWeek(startWeek)} — {isoWeek(weekStarts[weeks-1])} · 2026
+            week {isoWeek(startWeek)} — {isoWeek(weekStarts[weeks-1])} · {startWeek.slice(0,4)}
           </div>
           <div style={{ fontSize:12, color:MUTE }}>{fmt(startWeek)} t/m {fmt(addDays(weekStarts[weeks-1],4))}</div>
         </div>
@@ -158,6 +204,13 @@ export default function DienstPlanning() {
             onChange={e=>setWeeks(Math.min(26, Math.max(1, +e.target.value || 1)))}
             style={{ width:60, borderRadius:6, border:`1px solid ${LINE}`, padding:"6px 8px", fontSize:13 }}/>
         </div>
+        <button
+          onClick={() => exportICS(weekStarts, dienstWeekday, dienstWeekend, nameById)}
+          style={{ marginLeft:"auto", display:"inline-flex", alignItems:"center", gap:6,
+                   borderRadius:6, padding:"6px 12px", border:`1px solid ${LINE}`,
+                   background:"#fff", color:MUTE, fontSize:12.5, fontWeight:600, cursor:"pointer" }}>
+          <Download size={13}/> Exporteer ICS
+        </button>
       </div>
 
       <div style={{ padding:20, display:"grid", gap:18, gridTemplateColumns:"minmax(0,1fr)" }}>
@@ -230,7 +283,6 @@ export default function DienstPlanning() {
           </div>
           <p style={{ color:MUTE, fontSize:11, marginTop:8 }}>
             Uitkomst van de CP-SAT engine: vaste vrije dagen en cursusweken gerespecteerd, continuïteit en gelijke verdeling geoptimaliseerd.
-            De koppeling naar de live solver is de volgende stap.
           </p>
         </section>
 
@@ -268,7 +320,7 @@ export default function DienstPlanning() {
                   );
                 })}
                 {weekendDocs.length===0 && (
-                  <p style={{ color:MUTE, fontSize:12 }}>Geen artsen met weekenddienst-vaardigheid.</p>
+                  <p style={{ color:MUTE, fontSize:12 }}>Geen artsen gekoppeld aan weekenddienst.</p>
                 )}
               </div>
             </div>

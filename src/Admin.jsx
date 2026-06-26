@@ -1,23 +1,21 @@
 /**
- * Admin.jsx — v2
+ * Admin.jsx — v4
  *
- * Twee masterdata-secties:
- *   1. Vaardigheden  — label + categorie
- *   2. Activiteiten  — planbare blokken voor de dagplanning
- *
- * v2: bugfix NewSkillRow — categorie via select + apart nieuw-veld,
- *     niet meer via vrije datalist die de waarde kon overschrijven.
+ * Eén masterdata-sectie: activiteiten (planbare blokken + dienst-inzetbaarheid).
+ * v4: vaardigheden vervallen. Activiteiten worden in Personeel aan medewerkers
+ *     gekoppeld; hier beheer je naam/code/categorie/dagdelen/kleur en soort
+ *     (dag of dienst). De koppel-telling is read-only.
  */
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import {
   Settings, Plus, Pencil, Trash2, Check, X,
-  Tag, CalendarClock, Sun, Sunset, DownloadCloud,
+  CalendarClock, Sun, Sunset, Users,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
 
-const VERSION = "v3";
+const VERSION = "v4";
 
 const C = {
   brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
@@ -26,143 +24,20 @@ const C = {
   ok:"#16a34a", err:"#dc2626", warn:"#d97706",
 };
 
-const CAT_COLORS = [
-  { bg:"#dbeafe", ink:"#1e40af" }, { bg:"#dcfce7", ink:"#166534" },
-  { bg:"#fef9c3", ink:"#854d0e" }, { bg:"#fae8ff", ink:"#86198f" },
-  { bg:"#ffedd5", ink:"#9a3412" }, { bg:"#cffafe", ink:"#155e75" },
-];
-const catColor = (cats, cat) => CAT_COLORS[cats.indexOf(cat) % CAT_COLORS.length];
-
-const ACT_CATS   = ["Klinisch", "Secretarieel", "Opleiding"];
+const ACT_CATS   = ["Klinisch", "Secretarieel", "Opleiding", "Dienst"];
 const PERIODS    = ["AM", "PM"];
 const PERIOD_LBL = { AM:"Ochtend", PM:"Middag" };
+const KINDS = [
+  { id:"dag",    label:"Dagplanning" },
+  { id:"dienst", label:"Dienst (week/weekend)" },
+];
 
-/* ════════════════════════════════════════════════════════════════
-   VAARDIGHEDEN
-   ════════════════════════════════════════════════════════════════ */
-
-function SkillRow({ skill, cats, onSave, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft]     = useState(skill);
-  const [newCat, setNewCat]   = useState("");      // voor "Nieuwe categorie"
-  const [useNew, setUseNew]   = useState(false);
-  const col = catColor(cats, skill.cat);
-
-  const save = () => {
-    const finalCat = useNew ? newCat.trim() : draft.cat;
-    if (!finalCat) return;
-    onSave({ ...draft, cat: finalCat });
-    setEditing(false);
-  };
-  const cancel = () => { setDraft(skill); setEditing(false); setUseNew(false); };
-
-  if (editing) return (
-    <tr style={{ background:C.brandLt }}>
-      <td style={{ padding:"8px 12px" }}>
-        <input autoFocus value={draft.label}
-          onChange={e => setDraft(d => ({ ...d, label:e.target.value }))}
-          style={iStyle}/>
-      </td>
-      <td style={{ padding:"8px 12px" }}>
-        <select value={useNew ? "__new__" : draft.cat}
-          onChange={e => {
-            if (e.target.value === "__new__") { setUseNew(true); }
-            else { setUseNew(false); setDraft(d => ({ ...d, cat:e.target.value })); }
-          }}
-          style={iStyle}>
-          {cats.map(c => <option key={c} value={c}>{c}</option>)}
-          <option value="__new__">+ Nieuwe categorie…</option>
-        </select>
-        {useNew && (
-          <input autoFocus value={newCat} placeholder="Naam nieuwe categorie"
-            onChange={e => setNewCat(e.target.value)}
-            style={{ ...iStyle, marginTop:4 }}/>
-        )}
-      </td>
-      <td style={{ padding:"8px 12px" }}>
-        <div style={{ display:"flex", gap:6 }}>
-          <Btn primary onClick={save}><Check size={12}/> Opslaan</Btn>
-          <Btn onClick={cancel}><X size={12}/></Btn>
-        </div>
-      </td>
-    </tr>
-  );
-
-  return (
-    <tr style={{ borderBottom:`1px solid ${C.line}` }}
-        onMouseEnter={e => e.currentTarget.style.background=C.panel}
-        onMouseLeave={e => e.currentTarget.style.background=C.white}>
-      <td style={{ padding:"10px 12px", fontSize:13.5, color:C.ink, fontWeight:500 }}>{skill.label}</td>
-      <td style={{ padding:"10px 12px" }}>
-        <CatBadge bg={col.bg} ink={col.ink}>{skill.cat}</CatBadge>
-      </td>
-      <td style={{ padding:"10px 12px" }}>
-        <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
-          <Btn onClick={() => setEditing(true)}><Pencil size={12}/> Bewerken</Btn>
-          <Btn danger onClick={onDelete}><Trash2 size={12}/></Btn>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/* Nieuwe vaardigheid — select voor bestaande cat, apart veld voor nieuwe */
-function NewSkillRow({ cats, onAdd, onCancel }) {
-  const [label,  setLabel]  = useState("");
-  const [cat,    setCat]    = useState(cats[0] || "");
-  const [newCat, setNewCat] = useState("");
-  const [useNew, setUseNew] = useState(cats.length === 0); // geen cats? direct nieuw
-
-  const effectiveCat = useNew ? newCat.trim() : cat;
-  const canAdd = label.trim() && effectiveCat;
-
-  const add = () => { if (canAdd) onAdd({ label: label.trim(), cat: effectiveCat }); };
-
-  return (
-    <tr style={{ background:"#f0fdf4", borderBottom:`1px solid ${C.line}` }}>
-      <td style={{ padding:"8px 12px" }}>
-        <input autoFocus value={label} placeholder="Naam vaardigheid…"
-          onChange={e => setLabel(e.target.value)}
-          onKeyDown={e => e.key==="Enter" && add()}
-          style={{ ...iStyle, border:`1px solid ${C.ok}` }}/>
-      </td>
-      <td style={{ padding:"8px 12px" }}>
-        {/* select voor bestaande categorieën + optie voor nieuw */}
-        <select value={useNew ? "__new__" : cat}
-          onChange={e => {
-            if (e.target.value === "__new__") { setUseNew(true); setCat(""); }
-            else { setUseNew(false); setCat(e.target.value); }
-          }}
-          style={{ ...iStyle, border:`1px solid ${C.ok}` }}>
-          {cats.map(c => <option key={c} value={c}>{c}</option>)}
-          <option value="__new__">+ Nieuwe categorie…</option>
-        </select>
-        {/* apart tekstveld als "nieuwe categorie" gekozen */}
-        {useNew && (
-          <input value={newCat} placeholder="Naam nieuwe categorie"
-            onChange={e => setNewCat(e.target.value)}
-            onKeyDown={e => e.key==="Enter" && add()}
-            style={{ ...iStyle, border:`1px solid ${C.ok}`, marginTop:4 }}/>
-        )}
-      </td>
-      <td style={{ padding:"8px 12px" }}>
-        <div style={{ display:"flex", gap:6 }}>
-          <Btn ok onClick={add} style={{ opacity: canAdd ? 1 : 0.4 }}>
-            <Plus size={12}/> Toevoegen
-          </Btn>
-          <Btn onClick={onCancel}><X size={12}/></Btn>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    ACTIVITEITEN
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 
 const emptyActivity = (colorIdx) => ({
-  label:"", code:"", cat:"Klinisch", skillId:null,
+  label:"", code:"", cat:"Klinisch", kind:"dag",
   periods:["AM","PM"], colorIdx, fromImport:false, demand:1,
 });
 
@@ -203,7 +78,7 @@ function PeriodPicker({ value, onChange }) {
   );
 }
 
-function ActivityCard({ activity, skills, onSave, onDelete }) {
+function ActivityCard({ activity, linkedStaff, onSave, onDelete }) {
   const [open,  setOpen]  = useState(false);
   const [draft, setDraft] = useState(activity);
   const [dirty, setDirty] = useState(false);
@@ -212,119 +87,156 @@ function ActivityCard({ activity, skills, onSave, onDelete }) {
   const save   = () => { onSave(draft); setDirty(false); setOpen(false); };
   const cancel = () => { setDraft(activity); setDirty(false); setOpen(false); };
 
-  const col   = ACTIVITY_COLORS[draft.colorIdx ?? 0];
-  const skill = skills.find(s => s.id === draft.skillId);
+  const col      = ACTIVITY_COLORS[draft.colorIdx ?? 0];
+  const isDienst = draft.kind === "dienst";
 
   return (
-    <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${C.line}`, background:C.white }}>
-      <div onClick={() => setOpen(o=>!o)}
-        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                 cursor:"pointer", userSelect:"none",
-                 background: open ? C.brandLt : C.white }}>
-        <div style={{ width:14, height:32, borderRadius:3, flexShrink:0,
-                      background:col.bg, border:`2px solid ${col.ink}` }}/>
-        {draft.code && (
-          <span style={{ background:col.bg, color:col.ink, border:`1px solid ${col.ink}`,
-                         borderRadius:5, padding:"1px 7px", fontSize:11.5, fontWeight:800,
-                         flexShrink:0 }}>
-            {draft.code}
-          </span>
-        )}
-        <span style={{ fontWeight:700, fontSize:14, color:C.ink, flex:1 }}>
-          {draft.label || <span style={{color:C.mute}}>Naamloos</span>}
-        </span>
-        <CatBadge bg={col.bg} ink={col.ink}>{draft.cat}</CatBadge>
-        <span style={{ fontSize:11.5, color:C.sub }}>
-          {(draft.periods||[]).map(p=>PERIOD_LBL[p]).join(" + ")}
-        </span>
-        {skill && <span style={{ fontSize:11.5, color:C.mute }}>→ {skill.label}</span>}
-        {draft.fromImport && (
-          <span style={{ display:"flex", alignItems:"center", gap:3,
-                         fontSize:10.5, color:"#0891b2", fontWeight:600 }}>
-            <DownloadCloud size={12}/> import
-          </span>
-        )}
-        {draft.demand > 1 && <span style={{ fontSize:11, color:C.mute }}>×{draft.demand}</span>}
-        {dirty && <span style={{ fontSize:11, color:C.warn, fontWeight:600 }}>● niet opgeslagen</span>}
-        <span style={{ color:C.mute, fontSize:12 }}>{open ? "▲" : "▼"}</span>
-      </div>
-
-      {open && (
-        <div style={{ padding:"14px 18px 18px", borderTop:`1px solid ${C.line}` }}>
-          <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))" }}>
-            <FormField label="Code (kort, in de cel)">
-              <input value={draft.code} onChange={e=>upd("code",e.target.value)}
-                placeholder="bv. A1, OK, Poli" maxLength={8} style={iStyle}/>
-            </FormField>
-            <FormField label="Naam (volledig)">
-              <input value={draft.label} onChange={e=>upd("label",e.target.value)} style={iStyle}/>
-            </FormField>
-            <FormField label="Categorie">
-              <select value={draft.cat} onChange={e=>upd("cat",e.target.value)} style={iStyle}>
-                {ACT_CATS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Vereiste vaardigheid">
-              <select value={draft.skillId||""} onChange={e=>upd("skillId",e.target.value||null)} style={iStyle}>
-                <option value="">— geen vereiste —</option>
-                {skills.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Aantal personen (demand)">
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <input type="number" min={1} max={5} value={draft.demand}
-                  onChange={e=>upd("demand",Math.max(1,+e.target.value))}
-                  style={{ ...iStyle, width:64 }}/>
-                <span style={{ color:C.mute, fontSize:12 }}>persoon/personen tegelijk</span>
-              </div>
-            </FormField>
-            <FormField label="Dagdelen">
-              <PeriodPicker value={draft.periods||["AM","PM"]} onChange={v=>upd("periods",v)}/>
-            </FormField>
-            <FormField label="Kleur">
-              <ColorPicker value={draft.colorIdx??0} onChange={v=>upd("colorIdx",v)}/>
-            </FormField>
-            <FormField label="Importeerbaar via Excel">
-              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
-                <input type="checkbox" checked={draft.fromImport}
-                  onChange={e=>upd("fromImport",e.target.checked)}
-                  style={{ width:16, height:16 }}/>
-                <span style={{ fontSize:13, color:C.sub }}>
-                  Deze activiteit kan vanuit Excel-import worden ingeladen
+    <>
+      <tr style={{ borderBottom: open ? "none" : `1px solid ${C.line}`,
+                   background: open ? C.brandLt : C.white }}
+          onMouseEnter={e => { if (!open) e.currentTarget.style.background=C.panel; }}
+          onMouseLeave={e => { if (!open) e.currentTarget.style.background=C.white; }}>
+        {/* kleur + code */}
+        <td style={{ padding:"9px 12px", width:96 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <div style={{ width:10, height:10, borderRadius:3, flexShrink:0,
+                          background:col.bg, border:`2px solid ${col.ink}` }}/>
+            {draft.code
+              ? <span style={{ background:col.bg, color:col.ink, border:`1px solid ${col.ink}33`,
+                               borderRadius:5, padding:"1px 6px", fontSize:11.5, fontWeight:800 }}>
+                  {draft.code}
                 </span>
-              </label>
-            </FormField>
+              : <span style={{ color:C.mute, fontSize:11 }}>—</span>}
           </div>
-          <div style={{ display:"flex", gap:10, marginTop:16, paddingTop:14, borderTop:`1px solid ${C.line}` }}>
-            <Btn primary onClick={save}><Check size={13}/> Opslaan</Btn>
-            <Btn onClick={cancel}><X size={13}/> Annuleren</Btn>
-            <Btn danger onClick={onDelete} style={{ marginLeft:"auto" }}><Trash2 size={13}/> Verwijderen</Btn>
+        </td>
+        {/* naam */}
+        <td style={{ padding:"9px 12px", fontSize:13.5, fontWeight:600, color:C.ink }}>
+          {draft.label || <span style={{color:C.mute}}>Naamloos</span>}
+          {dirty && <span style={{ fontSize:10, color:C.warn, fontWeight:600, marginLeft:6 }}>●</span>}
+        </td>
+        {/* categorie */}
+        <td style={{ padding:"9px 12px" }}>
+          <CatBadge bg={col.bg} ink={col.ink}>{draft.cat}</CatBadge>
+        </td>
+        {/* soort */}
+        <td style={{ padding:"9px 12px" }}>
+          <span style={{ fontSize:11.5, fontWeight:700, borderRadius:99, padding:"2px 10px",
+                         background: isDienst ? "#fae8ff" : "#dcfce7",
+                         color: isDienst ? "#86198f" : "#166534" }}>
+            {isDienst ? "Dienst" : "Dag"}
+          </span>
+        </td>
+        {/* gekoppeld */}
+        <td style={{ padding:"9px 12px", fontSize:12, color: linkedStaff.length ? C.sub : C.mute }}>
+          {linkedStaff.length
+            ? <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
+                <Users size={12}/> {linkedStaff.length}
+              </span>
+            : <span style={{ color:C.line }}>vrij voor allen</span>}
+        </td>
+        {/* acties */}
+        <td style={{ padding:"9px 12px" }}>
+          <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+            <Btn onClick={() => setOpen(o=>!o)}>
+              <Pencil size={12}/> {open ? "Sluiten" : "Bewerken"}
+            </Btn>
+            <Btn danger onClick={onDelete}><Trash2 size={12}/></Btn>
           </div>
-        </div>
+        </td>
+      </tr>
+      {open && (
+        <tr style={{ borderBottom:`1px solid ${C.line}` }}>
+          <td colSpan={6} style={{ padding:"14px 18px 18px", background:C.brandLt }}>
+            <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))" }}>
+              <FormField label="Code (kort, in de cel)">
+                <input value={draft.code} onChange={e=>upd("code",e.target.value)}
+                  placeholder="bv. A1, OK, Poli" maxLength={8} style={iStyle}/>
+              </FormField>
+              <FormField label="Naam (volledig)">
+                <input value={draft.label} onChange={e=>upd("label",e.target.value)} style={iStyle}/>
+              </FormField>
+              <FormField label="Categorie">
+                <select value={draft.cat} onChange={e=>upd("cat",e.target.value)} style={iStyle}>
+                  {ACT_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </FormField>
+              <FormField label="Soort">
+                <select value={draft.kind} onChange={e=>upd("kind",e.target.value)} style={iStyle}>
+                  {KINDS.map(k => <option key={k.id} value={k.id}>{k.label}</option>)}
+                </select>
+              </FormField>
+              <FormField label="Aantal personen (demand)">
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <input type="number" min={1} max={5} value={draft.demand}
+                    onChange={e=>upd("demand",Math.max(1,+e.target.value))}
+                    style={{ ...iStyle, width:64 }}/>
+                  <span style={{ color:C.mute, fontSize:12 }}>persoon/personen tegelijk</span>
+                </div>
+              </FormField>
+              <FormField label="Dagdelen">
+                <PeriodPicker value={draft.periods||["AM","PM"]} onChange={v=>upd("periods",v)}/>
+              </FormField>
+              <FormField label="Kleur">
+                <ColorPicker value={draft.colorIdx??0} onChange={v=>upd("colorIdx",v)}/>
+              </FormField>
+              <FormField label="Importeerbaar via Excel">
+                <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
+                  <input type="checkbox" checked={draft.fromImport}
+                    onChange={e=>upd("fromImport",e.target.checked)}
+                    style={{ width:16, height:16 }}/>
+                  <span style={{ fontSize:13, color:C.sub }}>
+                    Deze activiteit kan vanuit Excel-import worden ingeladen
+                  </span>
+                </label>
+              </FormField>
+            </div>
+
+            {/* gekoppelde medewerkers — read-only, beheer in Personeel */}
+            <div style={{ marginTop:14, padding:"10px 12px", borderRadius:8,
+                          background:C.white, border:`1px solid ${C.line}` }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                <Users size={13} color={C.brand}/>
+                <span style={{ fontSize:12, fontWeight:700, color:C.sub }}>Gekoppelde medewerkers</span>
+              </div>
+              {linkedStaff.length ? (
+                <p style={{ fontSize:12.5, color:C.ink, margin:0 }}>
+                  {linkedStaff.map(s => s.name).join(", ")}.
+                  <span style={{ color:C.mute }}> Alleen zij zijn op deze activiteit inzetbaar.</span>
+                </p>
+              ) : (
+                <p style={{ fontSize:12.5, color:C.mute, margin:0 }}>
+                  Niemand gekoppeld — vrij voor iedereen. Koppelen doe je per medewerker onder Personeel.
+                </p>
+              )}
+            </div>
+
+            <div style={{ display:"flex", gap:10, marginTop:16, paddingTop:14, borderTop:`1px solid ${C.line}` }}>
+              <Btn primary onClick={save}><Check size={13}/> Opslaan</Btn>
+              <Btn onClick={cancel}><X size={13}/> Annuleren</Btn>
+              <Btn danger onClick={onDelete} style={{ marginLeft:"auto" }}><Trash2 size={13}/> Verwijderen</Btn>
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    HOOFDCOMPONENT
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 
 export default function Admin() {
   const {
-    skills, addSkill, updateSkill, deleteSkill, skillUsage, skillActUsage,
-    activities, addActivity, updateActivity, deleteActivity, activityUsage,
+    activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
   } = useApp();
 
-  const [addingSkill, setAddingSkill] = useState(false);
-  const [skillCatFilter, setSkillCat] = useState("all");
-  const [toDelSkill, setToDelSkill]   = useState(null);
-  const [toDelAct,   setToDelAct]     = useState(null);
-  const [actCatFilter, setActCat]     = useState("all");
+  const [toDelAct,   setToDelAct] = useState(null);
+  const [actCatFilter, setActCat] = useState("all");
 
-  const skillCats = [...new Set(skills.map(s => s.cat))];
-  const visSkills = skills.filter(s => skillCatFilter==="all" || s.cat===skillCatFilter);
-  const visActs   = activities.filter(a => actCatFilter==="all" || a.cat===actCatFilter);
+  const visActs = activities
+    .filter(a => actCatFilter==="all" || a.cat===actCatFilter)
+    .sort((a,b) => a.label.localeCompare(b.label, "nl"));
 
   const nextColorIdx = () => {
     const used = new Set(activities.map(a => a.colorIdx));
@@ -332,20 +244,13 @@ export default function Admin() {
     return activities.length % ACTIVITY_COLORS.length;
   };
 
-  const skillImpact = (s) => {
-    const st = skillUsage(s.id);
-    const ac = skillActUsage(s.id);
-    const l  = [];
-    if (st.length) l.push(`${st.length} medewerker(s): ${st.map(x=>x.name).join(", ")}.`);
-    if (ac.length) l.push(`${ac.length} activiteit(en): ${ac.map(x=>x.label).join(", ")}.`);
-    if (l.length)  l.push("De vaardigheid wordt automatisch losgekoppeld.");
-    return l;
-  };
-
   const actImpact = (a) => {
-    const u = activityUsage(a.id);
-    if (!u.length) return [];
-    return [`Ingepland op ${u.length} dag(en). Die toewijzingen worden verwijderd.`];
+    const l = [];
+    const u  = activityUsage(a.id);
+    const st = activityStaff(a.id);
+    if (u.length)  l.push(`Ingepland op ${u.length} dag(en). Die toewijzingen worden verwijderd.`);
+    if (st.length) l.push(`Gekoppeld aan ${st.length} medewerker(s): ${st.map(x=>x.name).join(", ")}. Die koppeling vervalt.`);
+    return l;
   };
 
   return (
@@ -360,50 +265,13 @@ export default function Admin() {
           <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>{VERSION}</span>
         </div>
         <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
-          Vaardigheden · activiteiten · masterdata
+          Activiteiten · masterdata
         </p>
       </div>
 
       <div style={{ padding:20, display:"flex", flexDirection:"column", gap:20 }}>
 
-        {/* ══ VAARDIGHEDEN ══ */}
-        <Section
-          icon={<Tag size={15} color={C.brand}/>}
-          title="Vaardigheden" count={skills.length}
-          filters={skillCats} activeFilter={skillCatFilter} onFilter={setSkillCat}
-          filterColors={cat => catColor(skillCats, cat)}
-          action={!addingSkill &&
-            <Btn primary onClick={() => setAddingSkill(true)}><Plus size={13}/> Nieuwe vaardigheid</Btn>}
-          footer="Vaardigheden koppelen medewerkers aan activiteiten. Nieuwe categorieën verschijnen automatisch in personeelsprofielen."
-        >
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead>
-              <tr style={{ borderBottom:`2px solid ${C.line}` }}>
-                <Th w="44%">NAAM</Th><Th w="30%">CATEGORIE</Th><Th w="26%"/>
-              </tr>
-            </thead>
-            <tbody>
-              {addingSkill && (
-                <NewSkillRow
-                  cats={skillCats}
-                  onAdd={s => { addSkill(s); setAddingSkill(false); setSkillCat("all"); }}
-                  onCancel={() => setAddingSkill(false)}
-                />
-              )}
-              {visSkills.length===0 && !addingSkill && (
-                <tr><td colSpan={3} style={{ padding:28, textAlign:"center", color:C.mute, fontSize:13 }}>
-                  Geen vaardigheden gevonden.
-                </td></tr>
-              )}
-              {visSkills.map(s => (
-                <SkillRow key={s.id} skill={s} cats={skillCats}
-                  onSave={updateSkill} onDelete={() => setToDelSkill(s)}/>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
-        {/* ══ ACTIVITEITEN ══ */}
+        {/* ACTIVITEITEN */}
         <Section
           icon={<CalendarClock size={15} color={C.brand}/>}
           title="Activiteiten" count={activities.length}
@@ -414,30 +282,38 @@ export default function Admin() {
               <Plus size={13}/> Nieuwe activiteit
             </Btn>
           }
-          footer={`${activities.length} activiteiten. Elke activiteit krijgt een eigen kleur in de dagplanning; bij meer dan 10 herhaalt het palet zich.`}
+          footer="Activiteiten zijn de planbare blokken. Koppel ze per medewerker onder Personeel; een activiteit zonder koppelingen staat vrij voor iedereen. Soort 'Dienst' bepaalt de inzetbaarheid voor week-/weekenddienst."
         >
-          <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"8px 12px 12px" }}>
-            {visActs.length===0 && (
-              <p style={{ color:C.mute, fontSize:13, textAlign:"center", padding:20 }}>
-                Geen activiteiten gevonden.
-              </p>
-            )}
-            {visActs.map(a => (
-              <ActivityCard key={a.id} activity={a} skills={skills}
-                onSave={updateActivity} onDelete={() => setToDelAct(a)}/>
-            ))}
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
+              <thead>
+                <tr style={{ borderBottom:`2px solid ${C.line}` }}>
+                  <Th w="12%">CODE</Th>
+                  <Th w="28%">NAAM</Th>
+                  <Th w="16%">CATEGORIE</Th>
+                  <Th w="12%">SOORT</Th>
+                  <Th w="16%">GEKOPPELD</Th>
+                  <Th w="16%"/>
+                </tr>
+              </thead>
+              <tbody>
+                {visActs.length===0 && (
+                  <tr><td colSpan={6} style={{ padding:28, textAlign:"center", color:C.mute, fontSize:13 }}>
+                    Geen activiteiten gevonden.
+                  </td></tr>
+                )}
+                {visActs.map(a => (
+                  <Fragment key={a.id}>
+                    <ActivityCard activity={a} linkedStaff={activityStaff(a.id)}
+                      onSave={updateActivity} onDelete={() => setToDelAct(a)}/>
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Section>
       </div>
 
-      <ConfirmDialog
-        open={!!toDelSkill}
-        title="Vaardigheid verwijderen"
-        description={toDelSkill ? `Weet je zeker dat je "${toDelSkill.label}" wilt verwijderen?` : ""}
-        impact={toDelSkill ? skillImpact(toDelSkill) : []}
-        onConfirm={() => { deleteSkill(toDelSkill.id); setToDelSkill(null); }}
-        onCancel={() => setToDelSkill(null)}
-      />
       <ConfirmDialog
         open={!!toDelAct}
         title="Activiteit verwijderen"
@@ -450,9 +326,9 @@ export default function Admin() {
   );
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ================================================================
    GEDEELDE MICRO-COMPONENTS
-   ════════════════════════════════════════════════════════════════ */
+   ================================================================ */
 
 function Section({ icon, title, count, filters, activeFilter, onFilter,
                    filterColors, action, footer, children }) {
