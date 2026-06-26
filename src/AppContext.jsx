@@ -43,17 +43,17 @@ const INITIAL_ACTIVITIES = [
   { id:ACT_WEEKDAY, code:"Wd",      label:"Weekdienst",            cat:"Dienst",       kind:"dienst", periods:["AM","PM"], colorIdx:0, fromImport:false, demand:1 },
   { id:ACT_WEEKEND, code:"We",      label:"Weekenddienst",         cat:"Dienst",       kind:"dienst", periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
 
-  { id:"act_a1",    code:"A1",      label:"Spreekkamer A1",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:0, fromImport:true,  demand:1 },
-  { id:"act_a2",    code:"A2",      label:"Spreekkamer A2",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:true,  demand:1 },
-  { id:"act_b",     code:"B",       label:"Behandelkamer B",       cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:2, fromImport:true,  demand:1 },
-  { id:"act_o",     code:"O",       label:"OK-assistentie",        cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
-  { id:"act_poli",  code:"Poli",    label:"Polikliniek",           cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:5, fromImport:true,  demand:1 },
-  { id:"act_pbk",   code:"PBK",     label:"PBK",                   cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:4, fromImport:false, demand:1 },
-  { id:"act_ok",    code:"OK",      label:"Operatiekamer",         cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
-  { id:"act_cosm",  code:"Cosm",    label:"Cosmetisch spreekuur",  cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:7, fromImport:false, demand:1 },
+  { id:"act_a1",    code:"A1",      label:"Spreekkamer A1",        cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:0, fromImport:true,  demand:1 },
+  { id:"act_a2",    code:"A2",      label:"Spreekkamer A2",        cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:true,  demand:1 },
+  { id:"act_b",     code:"B",       label:"Behandelkamer B",       cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:2, fromImport:true,  demand:1 },
+  { id:"act_o",     code:"O",       label:"OK-assistentie",        cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
+  { id:"act_poli",  code:"Poli",    label:"Polikliniek",           cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:5, fromImport:true,  demand:1 },
+  { id:"act_pbk",   code:"PBK",     label:"PBK",                   cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:4, fromImport:false, demand:1 },
+  { id:"act_ok",    code:"OK",      label:"Operatiekamer",         cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:6, fromImport:false, demand:1 },
+  { id:"act_cosm",  code:"Cosm",    label:"Cosmetisch spreekuur",  cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:7, fromImport:false, demand:1 },
   { id:"act_sprtel",code:"spr/tel", label:"Spreekuur / telefoon",  cat:"Secretarieel", kind:"dag", periods:["AM","PM"], colorIdx:9, fromImport:false, demand:1 },
   { id:"act_machtig",code:"machtig",label:"Machtigingen",          cat:"Secretarieel", kind:"dag", periods:["AM","PM"], colorIdx:8, fromImport:false, demand:1 },
-  { id:"act_huidth",code:"huidth.", label:"Huidtherapie",          cat:"Klinisch",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:false, demand:1 },
+  { id:"act_huidth",code:"huidth.", label:"Huidtherapie",          cat:"Huidtherapeut",     kind:"dag", periods:["AM","PM"], colorIdx:1, fromImport:false, demand:1 },
   { id:"act_school",code:"school",  label:"School / opleiding",    cat:"Opleiding",    kind:"dag", periods:["AM","PM"], colorIdx:3, fromImport:false, demand:1 },
 ];
 
@@ -146,7 +146,8 @@ function migrateActivities(list) {
   return (list || []).map(a => {
     const { skillId, ...rest } = a;
     const kind = a.kind || (a.id === ACT_WEEKDAY || a.id === ACT_WEEKEND ? "dienst" : "dag");
-    return { ...rest, kind };
+    const cat  = a.cat === "Klinisch" ? "Huidtherapeut" : a.cat;
+    return { ...rest, kind, cat };
   });
 }
 

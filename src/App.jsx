@@ -15,9 +15,9 @@ import Dashboard from "./Dashboard";
 import Admin from "./Admin";
 
 const NAV = [
-  { id: "dashboard", label: "Dashboard",     Icon: LayoutDashboard },
   { id: "dag",       label: "Dagplanning",    Icon: CalendarRange },
   { id: "dienst",    label: "Dienstplanning", Icon: CalendarDays },
+  { id: "dashboard", label: "Dashboard",      Icon: LayoutDashboard },
   { id: "uren",      label: "Urencheck",      Icon: Clock },
   { id: "personeel", label: "Personeel",      Icon: Users },
   { id: "admin",     label: "Beheer",         Icon: Settings },
@@ -43,7 +43,7 @@ function CloudBadge() {
 }
 
 function Shell({ user }) {
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState("dag");
 
   return (
     <div style={{ display:"flex", flexDirection:"column", minHeight:"100vh",

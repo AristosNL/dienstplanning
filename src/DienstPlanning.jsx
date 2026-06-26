@@ -133,7 +133,14 @@ export default function DienstPlanning() {
     return o;
   }, [staff]);
 
-  const onDropWeekend = (date) => { if (dragId) setWeekendDuty(date, { staffId:dragId, source:"manual" }); setDragId(null); };
+  const onDropWeekend = (date) => {
+    if (!dragId) return;
+    const isSat = new Date(date + "T00:00:00").getDay() === 6;
+    const pairDate = addDays(date, isSat ? 1 : -1); // za → zo, zo → za
+    setWeekendDuty(date,     { staffId: dragId, source: "manual" });
+    setWeekendDuty(pairDate, { staffId: dragId, source: "manual" });
+    setDragId(null);
+  };
   const clearWeekend  = () => weekStarts.forEach(s => { clearWeekendDuty(addDays(s,5)); clearWeekendDuty(addDays(s,6)); });
 
   const generateWeekday = async () => {
