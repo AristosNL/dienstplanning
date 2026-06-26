@@ -145,7 +145,7 @@ export default function Urencheck() {
             </div>
             <button onClick={()=>setWeekStart(addDays(weekStart,7))} style={navBtn}><ChevronRight size={16}/></button>
             <button onClick={()=>setWeekStart(mondayOf(iso(new Date())))}
-              style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+              style={{ ...navBtn, padding:"4px 36px", fontSize:12, fontWeight:600 }}>
               Deze week
             </button>
           </div>

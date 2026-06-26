@@ -167,11 +167,27 @@ export default function DienstPlanning() {
     }
   };
 
+  const [chartYear, setChartYear] = useState(new Date().getFullYear());
+
+  /* jaren waarvoor diensten bestaan + huidig jaar */
+  const availableYears = [...new Set([
+    new Date().getFullYear(),
+    ...Object.keys(dienstWeekday).map(d => parseInt(d.slice(0,4))),
+    ...Object.keys(dienstWeekend).map(d => parseInt(d.slice(0,4))),
+  ])].sort();
+
+  const yrStr = String(chartYear);
   const weekdayTotals = weekdayDocs.map(s => ({
-    id:s.id, name:s.name, total:(dienstCarry.weekday[s.id]||0) + weekdayDutyCount(s.id),
+    id:s.id, name:s.name,
+    total: (dienstCarry.weekday[s.id]||0) +
+      Object.entries(dienstWeekday)
+        .filter(([date,v]) => v?.staffId===s.id && date.startsWith(yrStr)).length,
   }));
   const weekendTotals = weekendDocs.map(s => ({
-    id:s.id, name:s.name, total:(dienstCarry.weekend[s.id]||0) + weekendDutyCount(s.id),
+    id:s.id, name:s.name,
+    total: (dienstCarry.weekend[s.id]||0) +
+      Object.entries(dienstWeekend)
+        .filter(([date,v]) => v?.staffId===s.id && date.startsWith(yrStr)).length * 0.5,
   }));
 
   return (
@@ -199,7 +215,7 @@ export default function DienstPlanning() {
         </div>
         <button onClick={()=>setStartWeek(addDays(startWeek, 7*weeks))} style={navBtn}><ChevronRight size={16}/></button>
         <button onClick={()=>setStartWeek(mondayOf(localToday()))}
-          style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+          style={{ ...navBtn, padding:"4px 36px", fontSize:12, fontWeight:600 }}>
           Deze week
         </button>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:8 }}>
@@ -264,7 +280,7 @@ export default function DienstPlanning() {
                 {weekStarts.map((start, w) => (
                   <tr key={w} style={{ borderBottom:`1px solid ${LINE}` }}>
                     <td style={{ padding:"7px 6px", fontSize:11.5, color:MUTE, whiteSpace:"nowrap" }}>
-                      <span style={{ fontWeight:700, color:INK }}>wk {w+1}</span><br/>{fmt(start)}
+                      <span style={{ fontWeight:700, color:INK }}>wk {isoWeek(start)}</span><br/>{fmt(start)}
                     </td>
                     {WD.map((_, i) => {
                       const date = addDays(start, i);
@@ -346,7 +362,7 @@ export default function DienstPlanning() {
                   {weekStarts.map((start, w) => (
                     <tr key={w} style={{ borderBottom:`1px solid ${LINE}` }}>
                       <td style={{ padding:"7px 6px", fontSize:11.5, color:MUTE }}>
-                        <span style={{ fontWeight:700, color:INK }}>wk {w+1}</span>
+                        <span style={{ fontWeight:700, color:INK }}>wk {isoWeek(start)}</span>
                       </td>
                       {[5,6].map(off => {
                         const date = addDays(start, off);
@@ -387,16 +403,28 @@ export default function DienstPlanning() {
 
         {/* FAIRNESS */}
         <section>
-          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, flexWrap:"wrap" }}>
             <Scale size={16} color={BRAND}/>
             <h2 style={{ color:INK, fontWeight:700, fontSize:15, margin:0 }}>Fairness — gescheiden saldi</h2>
+            <div style={{ marginLeft:"auto", display:"flex", gap:4, padding:3, borderRadius:7,
+                          background:"#f1f5f9", border:`1px solid ${LINE}` }}>
+              {availableYears.map(yr => (
+                <button key={yr} onClick={() => setChartYear(yr)}
+                  style={{ padding:"3px 14px", borderRadius:5, fontSize:12, fontWeight:600,
+                           cursor:"pointer", border:"none",
+                           background: yr===chartYear ? BRAND : "transparent",
+                           color:       yr===chartYear ? "#fff"  : MUTE }}>
+                  {yr}
+                </button>
+              ))}
+            </div>
           </div>
           <div style={{ display:"grid", gap:14, gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))" }}>
             <FairnessChart title="Weekdienst" data={weekdayTotals} colorById={colorById}/>
             <FairnessChart title="Weekenddienst" data={weekendTotals} colorById={colorById}/>
           </div>
           <p style={{ color:MUTE, fontSize:11, marginTop:8 }}>
-            Weekend telt apart van weekdienst. De weekend-balans werkt live mee terwijl je sleept.
+            Diensten in {chartYear} · carry-in is de historische startbalans vóór dit systeem · weekend telt 0,5 per dag.
           </p>
         </section>
       </div>

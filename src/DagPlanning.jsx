@@ -295,7 +295,7 @@ export default function DagPlanning() {
           <button onClick={() => setWeekStart(addDays(weekStart,7))}
             style={navBtn}><ChevronRight size={16}/></button>
           <button onClick={() => setWeekStart(mondayOf(iso(new Date())))}
-            style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+            style={{ ...navBtn, padding:"4px 36px", fontSize:12, fontWeight:600 }}>
             Deze week
           </button>
         </div>
@@ -324,7 +324,7 @@ export default function DagPlanning() {
 
         {/* grid */}
         <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${C.line}`, background:C.white }}>
-          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:912 }}>
+          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:912, width:"100%" }}>
             <thead>
               {/* dagen */}
               <tr>

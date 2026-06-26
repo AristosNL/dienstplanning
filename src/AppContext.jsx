@@ -214,9 +214,9 @@ export function AppProvider({ children }) {
   const clearWeekendPair  = (date)      => { const pair=_wePair(date); setDienstWeekend(p => { const n={...p}; delete n[date]; delete n[pair]; return n; }); };
 
   const weekdayDutyCount = (sid) => Object.values(dienstWeekday).filter(v => v?.staffId===sid).length;
-  /* tel weekenden (zaterdagen), niet losse dagen — carry-in is ook in weekenden */
-  const weekendDutyCount = (sid) => Object.entries(dienstWeekend)
-    .filter(([date, v]) => v?.staffId===sid && new Date(date+"T00:00:00").getDay()===6).length;
+  /* tel 0,5 per weekenddag (za=0,5 + zo=0,5 = 1,0 per volledig weekend) */
+  const weekendDutyCount = (sid) =>
+    Object.values(dienstWeekend).filter(v => v?.staffId === sid).length * 0.5;
 
   /* Dagplanning */
   const setDagAssign   = (key, value) => setDagplanning(p => ({ ...p, [key]: value }));
