@@ -43,7 +43,7 @@ const STATUS = {
 };
 
 /* ── date helpers ─────────────────────────────────────────────── */
-const iso = (d) => d.toISOString().slice(0,10);
+const iso = (d) => { const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; };
 const addDays = (isoStr, n) => { const d = new Date(isoStr+"T00:00:00"); d.setDate(d.getDate()+n); return iso(d); };
 const fmtNL = (isoStr) => isoStr.split("-").reverse().join("-");
 const fmtShort = (isoStr) => { const [,m,d]=isoStr.split("-"); return `${d}-${m}`; };
@@ -216,7 +216,7 @@ function Notes({ weekKey }) {
 /* ── Hoofdcomponent ───────────────────────────────────────────── */
 export default function DagPlanning() {
   const { staff, activities, dagplanning, setDagAssign, clearDagAssign } = useApp();
-  const [weekStart, setWeekStart] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
+  const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
   const [drag, setDrag] = useState(null); // { type:"activity"|"status", id }
 
   /* alleen dag-activiteiten in palet/grid; dienst-activiteiten horen hier niet */
@@ -284,7 +284,7 @@ export default function DagPlanning() {
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
           <button onClick={() => setWeekStart(addDays(weekStart,-7))}
             style={navBtn}><ChevronLeft size={16}/></button>
-          <div style={{ textAlign:"center", minWidth:230 }}>
+          <div style={{ textAlign:"center", minWidth:276 }}>
             <div style={{ fontWeight:700, fontSize:15, color:C.ink }}>
               {weekStart.slice(0,4)} — week {isoWeek(weekStart)}
             </div>
@@ -294,7 +294,7 @@ export default function DagPlanning() {
           </div>
           <button onClick={() => setWeekStart(addDays(weekStart,7))}
             style={navBtn}><ChevronRight size={16}/></button>
-          <button onClick={() => setWeekStart(mondayOf(new Date().toISOString().slice(0,10)))}
+          <button onClick={() => setWeekStart(mondayOf(iso(new Date())))}
             style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
             Deze week
           </button>

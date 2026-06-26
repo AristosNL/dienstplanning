@@ -26,7 +26,7 @@ const C = {
 };
 
 /* date helpers */
-const iso = (d) => d.toISOString().slice(0,10);
+const iso = (d) => { const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; };
 const addDays = (s,n) => { const d=new Date(s+"T00:00:00"); d.setDate(d.getDate()+n); return iso(d); };
 const fmtNL = (s) => s.split("-").reverse().join("-");
 function mondayOf(s){ const d=new Date(s+"T00:00:00"); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return iso(d); }
@@ -74,7 +74,7 @@ function HoursBar({ planned, contract }) {
 
 export default function Urencheck() {
   const { staff, dagplanning, dienstWeekday, dienstWeekend } = useApp();
-  const [weekStart, setWeekStart] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
+  const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
   const [hoursPerDagdeel, setHpd] = useState(4);
 
   const weekKey = weekStart;
@@ -144,7 +144,7 @@ export default function Urencheck() {
               <div style={{ fontSize:12, color:C.mute }}>{fmtNL(weekStart)} t/m {fmtNL(addDays(weekStart,4))}</div>
             </div>
             <button onClick={()=>setWeekStart(addDays(weekStart,7))} style={navBtn}><ChevronRight size={16}/></button>
-            <button onClick={()=>setWeekStart(mondayOf(new Date().toISOString().slice(0,10)))}
+            <button onClick={()=>setWeekStart(mondayOf(iso(new Date())))}
               style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
               Deze week
             </button>

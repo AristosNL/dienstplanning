@@ -31,7 +31,7 @@ const STATUS  = {
   X:   { code:"x",    bg:"#f8fafc", ink:"#94a3b8", border:"#e2e8f0" },
 };
 
-const iso=(d)=>d.toISOString().slice(0,10);
+const iso=(d)=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dy}`;};
 const addDays=(s,n)=>{const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return iso(d);};
 const fmtNL=(s)=>s.split("-").reverse().join("-");
 const fmtShort=(s)=>{const[,m,d]=s.split("-");return `${d}-${m}`;};
@@ -40,7 +40,7 @@ function isoWeek(s){const d=new Date(s+"T00:00:00"),t=new Date(d.valueOf());cons
 
 export default function Dashboard() {
   const { staff, activities, dagplanning, dienstWeekday } = useApp();
-  const [weekStart, setWeekStart] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
+  const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
   const [mode, setMode] = useState("staff"); // staff | activity
   const [selStaff, setSelStaff] = useState(staff[0]?.id || "");
   const [selAct, setSelAct]     = useState(activities[0]?.id || "");
@@ -74,7 +74,7 @@ export default function Dashboard() {
               <div style={{ fontSize:12, color:C.mute }}>{fmtNL(weekStart)} t/m {fmtNL(addDays(weekStart,4))}</div>
             </div>
             <button onClick={()=>setWeekStart(addDays(weekStart,7))} style={navBtn}><ChevronRight size={16}/></button>
-            <button onClick={()=>setWeekStart(mondayOf(new Date().toISOString().slice(0,10)))}
+            <button onClick={()=>setWeekStart(mondayOf(iso(new Date())))}
               style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
               Deze week
             </button>

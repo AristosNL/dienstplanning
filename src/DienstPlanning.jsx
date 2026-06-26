@@ -16,8 +16,9 @@ import { useApp, ACTIVITY_COLORS, ACT_WEEKDAY, ACT_WEEKEND } from "./AppContext"
 const BRAND="#1d4ed8", BRAND_DK="#1e3a8a", INK="#0f172a", MUTE="#64748b", LINE="#e2e8f0", PANEL="#f8fafc";
 const WD = ["ma","di","wo","do","vr"];
 const fmt = (iso) => iso.split("-").reverse().join("-");
-const addDays = (iso,n) => { const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
-const mondayOf = (iso) => { const d=new Date(iso+"T00:00:00"); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d.toISOString().slice(0,10); };
+const addDays = (iso,n) => { const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
+const mondayOf = (iso) => { const d=new Date(iso+"T00:00:00"); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
+const localToday = () => { const n=new Date(); const y=n.getFullYear(),m=String(n.getMonth()+1).padStart(2,'0'),d=String(n.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; };
 function isoWeek(iso){ const d=new Date(iso+"T00:00:00"),t=new Date(d.valueOf());const n=(d.getDay()+6)%7;t.setDate(t.getDate()-n+3);const f=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-f)/86400000-3+((f.getDay()+6)%7))/7);}
 
 const SourceTag = ({ kind }) => {
@@ -112,7 +113,7 @@ export default function DienstPlanning() {
   } = useApp();
   const [dragId, setDragId] = useState(null);
   const [solveStatus, setSolveStatus] = useState(null); // {state, msg}
-  const [startWeek, setStartWeek] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
+  const [startWeek, setStartWeek] = useState(mondayOf(localToday()));
   const [weeks, setWeeks] = useState(4);
 
   const weekStarts = useMemo(
@@ -197,7 +198,7 @@ export default function DienstPlanning() {
           <div style={{ fontSize:12, color:MUTE }}>{fmt(startWeek)} t/m {fmt(addDays(weekStarts[weeks-1],4))}</div>
         </div>
         <button onClick={()=>setStartWeek(addDays(startWeek, 7*weeks))} style={navBtn}><ChevronRight size={16}/></button>
-        <button onClick={()=>setStartWeek(mondayOf(new Date().toISOString().slice(0,10)))}
+        <button onClick={()=>setStartWeek(mondayOf(localToday()))}
           style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
           Deze week
         </button>
