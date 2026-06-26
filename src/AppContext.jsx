@@ -200,10 +200,23 @@ export function AppProvider({ children }) {
   /* Dienst week/weekend */
   const setWeekdayDuty   = (date, val) => setDienstWeekday(p => ({ ...p, [date]: val }));
   const clearWeekdayDuty = (date)      => setDienstWeekday(p => { const n={...p}; delete n[date]; return n; });
-  const setWeekendDuty   = (date, val) => setDienstWeekend(p => ({ ...p, [date]: val }));
-  const clearWeekendDuty = (date)      => setDienstWeekend(p => { const n={...p}; delete n[date]; return n; });
+
+  /* weekenddienst: altijd za+zo als één atomaire state-update behandelen */
+  const _wePair = (date) => {
+    const isSat = new Date(date + "T00:00:00").getDay() === 6;
+    const other = new Date(date + "T00:00:00");
+    other.setDate(other.getDate() + (isSat ? 1 : -1));
+    return other.toISOString().slice(0, 10);
+  };
+  const setWeekendDuty    = (date, val) => setDienstWeekend(p => ({ ...p, [date]: val }));
+  const setWeekendPair    = (date, val) => { const pair=_wePair(date); setDienstWeekend(p => ({ ...p, [date]: val, [pair]: val })); };
+  const clearWeekendDuty  = (date)      => setDienstWeekend(p => { const n={...p}; delete n[date]; return n; });
+  const clearWeekendPair  = (date)      => { const pair=_wePair(date); setDienstWeekend(p => { const n={...p}; delete n[date]; delete n[pair]; return n; }); };
+
   const weekdayDutyCount = (sid) => Object.values(dienstWeekday).filter(v => v?.staffId===sid).length;
-  const weekendDutyCount = (sid) => Object.values(dienstWeekend).filter(v => v?.staffId===sid).length;
+  /* tel weekenden (zaterdagen), niet losse dagen — carry-in is ook in weekenden */
+  const weekendDutyCount = (sid) => Object.entries(dienstWeekend)
+    .filter(([date, v]) => v?.staffId===sid && new Date(date+"T00:00:00").getDay()===6).length;
 
   /* Dagplanning */
   const setDagAssign   = (key, value) => setDagplanning(p => ({ ...p, [key]: value }));
@@ -282,6 +295,7 @@ export function AppProvider({ children }) {
       notes, addNote, updateNote, deleteNote,
       dienstWeekday, dienstWeekend, dienstCarry,
       setWeekdayDuty, clearWeekdayDuty, setWeekendDuty, clearWeekendDuty,
+      setWeekendPair, clearWeekendPair,
       weekdayDutyCount, weekendDutyCount,
       solverUrl, setSolverUrl,
       loaded, cloud, firebaseReady,

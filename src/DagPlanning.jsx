@@ -141,7 +141,7 @@ function Cell({ assignment, conflict, soft, activity, onDrop, onClear }) {
         onDrop={onDrop}
         title={conflict ? `Conflict: ${conflict}` : soft ? `Let op: ${soft}` : (activity?.label || "")}
         style={{
-          position:"relative", height:"100%", minWidth:46,
+          position:"relative", height:"100%", minWidth:55,
           borderRadius:5, background:bg,
           border: conflict ? `2px solid ${C.err}` : dashed ? `1.5px dashed ${C.line}` : `1px solid ${border}`,
           display:"flex", alignItems:"center", justifyContent:"center", gap:3,
@@ -223,21 +223,24 @@ export default function DagPlanning() {
   const dagActs = activities.filter(a => a.kind !== "dienst");
   const actById = Object.fromEntries(activities.map(a => [a.id, a]));
 
-  /* auto-fill "VRIJ" voor vaste vrije dagen bij weekwisseling */
+  /* auto-fill "VRIJ" voor vaste vrije dagen; cleanup verouderde auto-entries */
   useEffect(() => {
     staff.forEach(s => {
-      (s.fixedOff || []).forEach(wd => {
-        const dayIdx = FIXED_DAY_IDX[wd];
-        if (dayIdx === undefined) return; // za/zo niet in grid
+      for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
+        const wd = WD_MAP[new Date(addDays(weekStart, dayIdx) + "T00:00:00").getDay()];
+        const isFixed = s.fixedOff?.includes(wd);
         PERIODS.forEach(period => {
           const k = `${weekStart}__${s.id}__${dayIdx}__${period}`;
-          if (!dagplanning[k]) {
+          const existing = dagplanning[k];
+          if (isFixed && !existing) {
             setDagAssign(k, { activityId: "VRIJ", source: "auto" });
+          } else if (!isFixed && existing?.activityId === "VRIJ" && existing?.source === "auto") {
+            clearDagAssign(k); // vaste vrije dag is verwijderd → verouderde entry opruimen
           }
         });
-      });
+      }
     });
-  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [weekStart, staff]); // eslint-disable-line react-hooks/exhaustive-deps
   const weekKey = weekStart;
   const dateOf  = (dayIdx) => addDays(weekStart, dayIdx);
   const keyOf   = (sid, dayIdx, period) => `${weekKey}__${sid}__${dayIdx}__${period}`;
@@ -275,7 +278,7 @@ export default function DagPlanning() {
         </p>
       </div>
 
-      <div style={{ padding:20 }}>
+      <div style={{ padding:"20px 4px" }}>
 
         {/* weeknavigatie */}
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
@@ -291,6 +294,10 @@ export default function DagPlanning() {
           </div>
           <button onClick={() => setWeekStart(addDays(weekStart,7))}
             style={navBtn}><ChevronRight size={16}/></button>
+          <button onClick={() => setWeekStart(mondayOf(new Date().toISOString().slice(0,10)))}
+            style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+            Deze week
+          </button>
         </div>
 
         {/* palet */}
@@ -317,7 +324,7 @@ export default function DagPlanning() {
 
         {/* grid */}
         <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${C.line}`, background:C.white }}>
-          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:760 }}>
+          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:912 }}>
             <thead>
               {/* dagen */}
               <tr>
@@ -417,4 +424,4 @@ const navBtn = {
   background:C.white, color:C.sub, cursor:"pointer",
 };
 const thBase = { background:C.panel, borderBottom:`1px solid ${C.line}`, position:"sticky", top:0, zIndex:2 };
-const stickyName = { position:"sticky", left:0, background:C.white, zIndex:2, minWidth:130, borderRight:`2px solid ${C.line}` };
+const stickyName = { position:"sticky", left:0, background:C.white, zIndex:2, minWidth:155, borderRight:`2px solid ${C.line}` };

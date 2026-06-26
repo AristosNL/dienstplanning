@@ -40,7 +40,7 @@ function isoWeek(s){const d=new Date(s+"T00:00:00"),t=new Date(d.valueOf());cons
 
 export default function Dashboard() {
   const { staff, activities, dagplanning, dienstWeekday } = useApp();
-  const [weekStart, setWeekStart] = useState(mondayOf("2026-06-22"));
+  const [weekStart, setWeekStart] = useState(mondayOf(new Date().toISOString().slice(0, 10)));
   const [mode, setMode] = useState("staff"); // staff | activity
   const [selStaff, setSelStaff] = useState(staff[0]?.id || "");
   const [selAct, setSelAct]     = useState(activities[0]?.id || "");
@@ -70,10 +70,14 @@ export default function Dashboard() {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <button onClick={()=>setWeekStart(addDays(weekStart,-7))} style={navBtn}><ChevronLeft size={16}/></button>
             <div style={{ textAlign:"center", minWidth:210 }}>
-              <div style={{ fontWeight:700, fontSize:15, color:C.ink }}>2026 — week {isoWeek(weekStart)}</div>
+              <div style={{ fontWeight:700, fontSize:15, color:C.ink }}>{weekStart.slice(0,4)} — week {isoWeek(weekStart)}</div>
               <div style={{ fontSize:12, color:C.mute }}>{fmtNL(weekStart)} t/m {fmtNL(addDays(weekStart,4))}</div>
             </div>
             <button onClick={()=>setWeekStart(addDays(weekStart,7))} style={navBtn}><ChevronRight size={16}/></button>
+            <button onClick={()=>setWeekStart(mondayOf(new Date().toISOString().slice(0,10)))}
+              style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+              Deze week
+            </button>
           </div>
 
           {/* modus-toggle */}

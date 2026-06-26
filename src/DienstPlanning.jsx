@@ -107,7 +107,7 @@ export default function DienstPlanning() {
   const {
     staff, dienstWeekday, dienstWeekend, dienstCarry,
     setWeekdayDuty, clearWeekdayDuty,
-    setWeekendDuty, clearWeekendDuty, weekdayDutyCount, weekendDutyCount,
+    setWeekendPair, clearWeekendPair, weekdayDutyCount, weekendDutyCount,
     solverUrl, setSolverUrl,
   } = useApp();
   const [dragId, setDragId] = useState(null);
@@ -135,10 +135,7 @@ export default function DienstPlanning() {
 
   const onDropWeekend = (date) => {
     if (!dragId) return;
-    const isSat = new Date(date + "T00:00:00").getDay() === 6;
-    const pairDate = addDays(date, isSat ? 1 : -1); // za → zo, zo → za
-    setWeekendDuty(date,     { staffId: dragId, source: "manual" });
-    setWeekendDuty(pairDate, { staffId: dragId, source: "manual" });
+    setWeekendPair(date, { staffId: dragId, source: "manual" });
     setDragId(null);
   };
   const clearWeekend  = () => weekStarts.forEach(s => { clearWeekendDuty(addDays(s,5)); clearWeekendDuty(addDays(s,6)); });
@@ -200,6 +197,10 @@ export default function DienstPlanning() {
           <div style={{ fontSize:12, color:MUTE }}>{fmt(startWeek)} t/m {fmt(addDays(weekStarts[weeks-1],4))}</div>
         </div>
         <button onClick={()=>setStartWeek(addDays(startWeek, 7*weeks))} style={navBtn}><ChevronRight size={16}/></button>
+        <button onClick={()=>setStartWeek(mondayOf(new Date().toISOString().slice(0,10)))}
+          style={{ ...navBtn, padding:"4px 12px", fontSize:12, fontWeight:600 }}>
+          Deze week
+        </button>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:8 }}>
           <label style={{ fontSize:12.5, color:MUTE }}>vanaf</label>
           <input type="date" value={startWeek} onChange={e=>e.target.value && setStartWeek(mondayOf(e.target.value))}
@@ -363,7 +364,7 @@ export default function DienstPlanning() {
                                   <span style={{ fontWeight:600, fontSize:13, color:c.ink }}>{nameById[a.staffId]}</span>
                                   <span style={{ display:"flex", alignItems:"center", gap:6 }}>
                                     <SourceTag kind="manual"/>
-                                    <button onClick={()=>clearWeekendDuty(date)} style={{ lineHeight:0, color:c.ink }}>
+                                    <button onClick={()=>clearWeekendPair(date)} style={{ lineHeight:0, color:c.ink }}>
                                       <X size={13}/>
                                     </button>
                                   </span>
