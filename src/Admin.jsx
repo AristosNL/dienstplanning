@@ -10,7 +10,7 @@
 import { useState, Fragment } from "react";
 import {
   Settings, Plus, Pencil, Trash2, Check, X,
-  CalendarClock, Sun, Sunset, Users,
+  CalendarClock, Sun, Sunset, Users, Upload, FileText, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -229,10 +229,40 @@ function ActivityCard({ activity, linkedStaff, onSave, onDelete }) {
 export default function Admin() {
   const {
     activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
+    requirements, setRequirements, clearRequirements, solverUrl,
   } = useApp();
 
   const [toDelAct,   setToDelAct] = useState(null);
   const [actCatFilter, setActCat] = useState("all");
+
+  /* requirements import */
+  const [okFile,       setOkFile]       = useState(null);
+  const [pbkFile,      setPbkFile]      = useState(null);
+  const [importStatus, setImportStatus] = useState(null); // null | "busy" | "ok" | "err"
+  const [importMsg,    setImportMsg]    = useState("");
+
+  const reqCount = Object.values(requirements)
+    .reduce((n, v) => n + (v.AM?.length || 0) + (v.PM?.length || 0), 0);
+
+  const handleImport = async () => {
+    if (!okFile && !pbkFile) { setImportMsg("Selecteer minimaal één Excel-bestand."); setImportStatus("err"); return; }
+    if (!solverUrl?.trim()) { setImportMsg("Stel eerst de solver-URL in (via Dienstplanning)."); setImportStatus("err"); return; }
+    setImportStatus("busy"); setImportMsg("Bezig met verwerken…");
+    try {
+      const fd = new FormData();
+      if (okFile)  fd.append("ok_file",  okFile);
+      if (pbkFile) fd.append("pbk_file", pbkFile);
+      const resp = await fetch(solverUrl.trim().replace(/\/$/, "") + "/parse-requirements", { method:"POST", body:fd });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      setRequirements(data.requirements);
+      setImportStatus("ok");
+      setImportMsg(`${data.count} vereisten geïmporteerd over ${Object.keys(data.requirements).length} datums.`);
+    } catch (e) {
+      setImportStatus("err");
+      setImportMsg("Importeren mislukt. Draait de solver-service en klopt de URL?");
+    }
+  };
 
   const visActs = activities
     .filter(a => actCatFilter==="all" || a.cat===actCatFilter)
@@ -270,6 +300,74 @@ export default function Admin() {
       </div>
 
       <div style={{ padding:20, display:"flex", flexDirection:"column", gap:20 }}>
+
+        {/* VEREISTEN IMPORTEREN */}
+        <div style={{ borderRadius:12, background:C.white, border:`1px solid ${C.line}`, overflow:"hidden" }}>
+          <div style={{ padding:"13px 18px", borderBottom:`1px solid ${C.line}`,
+                        display:"flex", alignItems:"center", gap:8 }}>
+            <Upload size={15} color={C.brand}/>
+            <h2 style={{ fontWeight:700, fontSize:15, color:C.ink, margin:0 }}>
+              Vereisten importeren
+            </h2>
+            {reqCount > 0 && (
+              <span style={{ background:C.brandLt, color:C.brand, borderRadius:99,
+                             padding:"1px 8px", fontSize:11.5, fontWeight:700 }}>
+                {reqCount} actief
+              </span>
+            )}
+          </div>
+          <div style={{ padding:"16px 18px" }}>
+            <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 14px" }}>
+              Upload het OK- en/of PBK-sessierooster (Excel). Doorgestreepte en overgedragen PLA-cellen
+              worden automatisch uitgefilterd. De vereisten verschijnen als badges in de Dagplanning-koppen.
+            </p>
+            <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"flex-end" }}>
+              <FormField label="OK-sessierooster (.xlsx)">
+                <label style={{ display:"inline-flex", alignItems:"center", gap:8, cursor:"pointer",
+                                padding:"6px 12px", borderRadius:7, border:`1.5px dashed ${C.line}`,
+                                background:C.panel, fontSize:12.5, color: okFile ? C.brand : C.mute }}>
+                  <FileText size={14}/>
+                  {okFile ? okFile.name : "Kies bestand…"}
+                  <input type="file" accept=".xlsx" style={{ display:"none" }}
+                    onChange={e => setOkFile(e.target.files?.[0] || null)}/>
+                </label>
+              </FormField>
+              <FormField label="PBK-sessierooster (.xlsx)">
+                <label style={{ display:"inline-flex", alignItems:"center", gap:8, cursor:"pointer",
+                                padding:"6px 12px", borderRadius:7, border:`1.5px dashed ${C.line}`,
+                                background:C.panel, fontSize:12.5, color: pbkFile ? C.brand : C.mute }}>
+                  <FileText size={14}/>
+                  {pbkFile ? pbkFile.name : "Kies bestand…"}
+                  <input type="file" accept=".xlsx" style={{ display:"none" }}
+                    onChange={e => setPbkFile(e.target.files?.[0] || null)}/>
+                </label>
+              </FormField>
+              <Btn primary onClick={handleImport} style={{ marginBottom:2 }}>
+                {importStatus === "busy"
+                  ? "Bezig…"
+                  : <><Upload size={13}/> Verwerken &amp; importeren</>}
+              </Btn>
+              {reqCount > 0 && (
+                <Btn danger onClick={() => { clearRequirements(); setImportStatus(null); setImportMsg(""); }}
+                  style={{ marginBottom:2 }}>
+                  <Trash2 size={13}/> Wis vereisten
+                </Btn>
+              )}
+            </div>
+            {importMsg && (
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:12,
+                            padding:"8px 12px", borderRadius:8,
+                            background: importStatus==="ok" ? "#f0fdf4" : importStatus==="err" ? "#fef2f2" : "#eff6ff",
+                            border: `1px solid ${importStatus==="ok" ? "#bbf7d0" : importStatus==="err" ? "#fecaca" : "#bfdbfe"}` }}>
+                {importStatus==="ok"  && <CheckCircle2 size={14} color="#16a34a"/>}
+                {importStatus==="err" && <AlertCircle  size={14} color="#dc2626"/>}
+                <span style={{ fontSize:12.5, color: importStatus==="ok" ? "#166534" : importStatus==="err" ? "#991b1b" : C.brand }}>
+                  {importMsg}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* ACTIVITEITEN */}
         <Section

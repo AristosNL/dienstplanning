@@ -18,7 +18,7 @@ import {
   CalendarDays, ChevronLeft, ChevronRight, Bot, Hand, Upload,
   AlertTriangle, X, Plus, Trash2, StickyNote, Sun, Sunset,
 } from "lucide-react";
-import { useApp, ACTIVITY_COLORS, GROUPS } from "./AppContext";
+import { useApp, ACTIVITY_COLORS, GROUPS, REQUIREMENT_ACT_MAP } from "./AppContext";
 
 const VERSION = "v1";
 
@@ -141,7 +141,7 @@ function Cell({ assignment, conflict, soft, activity, onDrop, onClear }) {
         onDrop={onDrop}
         title={conflict ? `Conflict: ${conflict}` : soft ? `Let op: ${soft}` : (activity?.label || "")}
         style={{
-          position:"relative", height:"100%", minWidth:55,
+          position:"relative", height:"100%", width:"100%", minWidth:55,
           borderRadius:5, background:bg,
           border: conflict ? `2px solid ${C.err}` : dashed ? `1.5px dashed ${C.line}` : `1px solid ${border}`,
           display:"flex", alignItems:"center", justifyContent:"center", gap:3,
@@ -215,13 +215,25 @@ function Notes({ weekKey }) {
 
 /* ── Hoofdcomponent ───────────────────────────────────────────── */
 export default function DagPlanning() {
-  const { staff, activities, dagplanning, setDagAssign, clearDagAssign } = useApp();
+  const { staff, activities, dagplanning, setDagAssign, clearDagAssign, requirements } = useApp();
   const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
   const [drag, setDrag] = useState(null); // { type:"activity"|"status", id }
 
   /* alleen dag-activiteiten in palet/grid; dienst-activiteiten horen hier niet */
   const dagActs = activities.filter(a => a.kind !== "dienst");
   const actById = Object.fromEntries(activities.map(a => [a.id, a]));
+
+  /* precompute welke activityIds ingepland zijn per datum+dagdeel (voor requirement-check) */
+  const assignedByDP = {};
+  for (const [key, val] of Object.entries(dagplanning)) {
+    if (!val?.activityId || val.activityId === "VRIJ" || val.activityId === "X") continue;
+    const parts = key.split("__");
+    if (parts.length < 4) continue;
+    const date = addDays(parts[0], parseInt(parts[2]));
+    const dp = `${date}__${parts[3]}`;
+    if (!assignedByDP[dp]) assignedByDP[dp] = new Set();
+    assignedByDP[dp].add(val.activityId);
+  }
 
   /* auto-fill "VRIJ" voor vaste vrije dagen; cleanup verouderde auto-entries */
   useEffect(() => {
@@ -340,16 +352,34 @@ export default function DagPlanning() {
                   </th>
                 ))}
               </tr>
-              {/* dagdelen */}
+              {/* dagdelen + requirement-badges */}
               <tr>
-                {DAYS.map((d,i) => PERIODS.map(p => (
-                  <th key={d+p} style={{ ...thBase, padding:"3px 4px", fontSize:10, color:C.sub,
-                                         borderLeft: p==="AM" ? `2px solid ${C.line}` : "none" }}>
-                    <span style={{ display:"inline-flex", alignItems:"center", gap:2 }}>
-                      {p==="AM" ? <Sun size={10}/> : <Sunset size={10}/>}{PER_LBL[p]}
-                    </span>
-                  </th>
-                )))}
+                {DAYS.map((d,i) => PERIODS.map(p => {
+                  const date   = dateOf(i);
+                  const reqs   = requirements[date]?.[p] || [];
+                  return (
+                    <th key={d+p} style={{ ...thBase, padding:"3px 4px", fontSize:10, color:C.sub,
+                                           borderLeft: p==="AM" ? `2px solid ${C.line}` : "none" }}>
+                      <span style={{ display:"inline-flex", alignItems:"center", gap:2 }}>
+                        {p==="AM" ? <Sun size={10}/> : <Sunset size={10}/>}{PER_LBL[p]}
+                      </span>
+                      {reqs.map(rType => {
+                        const actId     = REQUIREMENT_ACT_MAP[rType];
+                        const satisfied = assignedByDP[`${date}__${p}`]?.has(actId);
+                        return (
+                          <span key={rType} style={{
+                            display:"block", marginTop:2, textAlign:"center",
+                            fontSize:9, fontWeight:800, borderRadius:3,
+                            padding:"1px 4px", letterSpacing:.3,
+                            background: satisfied ? "#dcfce7" : "#fff7ed",
+                            color:      satisfied ? "#166534" : "#9a3412",
+                            border:     `1px solid ${satisfied ? "#bbf7d0" : "#fed7aa"}`,
+                          }}>{rType}</span>
+                        );
+                      })}
+                    </th>
+                  );
+                }))}
               </tr>
             </thead>
             <tbody>

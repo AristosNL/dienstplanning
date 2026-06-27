@@ -19,6 +19,9 @@ export const today = () => new Date().toISOString().slice(0, 10);
 export const ACT_WEEKDAY = "act_dienst_weekdag";
 export const ACT_WEEKEND = "act_dienst_weekend";
 
+/* mapping Excel-vereiste-type → activiteit-id in de app */
+export const REQUIREMENT_ACT_MAP = { "OK": "act_ok", "PBK": "act_pbk" };
+
 /* -- 10 zachte pastelkleuren ----------------------------------- */
 export const ACTIVITY_COLORS = [
   { bg:"#dbeafe", ink:"#1e40af", border:"#bfdbfe" },
@@ -163,6 +166,11 @@ export function AppProvider({ children }) {
   const [dienstWeekend, setDienstWeekend] = useState(INITIAL_DIENST_WEEKEND);
   const [dienstCarry, setDienstCarry]     = useState(INITIAL_DIENST_CARRY);
   const [solverUrl,   setSolverUrl]       = useState("");
+  /* requirements: { "2026-01-05": { AM: ["OK"], PM: ["PBK"] } }
+     Geladen via /parse-requirements endpoint; aparte Firestore-doc */
+  const [requirements, setRequirementsState] = useState({});
+  const setRequirements  = (reqs) => setRequirementsState(reqs);
+  const clearRequirements = ()   => setRequirementsState({});
   const [loaded,      setLoaded]          = useState(false);
   const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
 
@@ -254,6 +262,8 @@ export function AppProvider({ children }) {
         }
         const st = await getDoc(doc(db, "appdata", "settings"));
         if (st.exists() && st.data().solverUrl) setSolverUrl(st.data().solverUrl);
+        const rq = await getDoc(doc(db, "appdata", "requirements"));
+        if (rq.exists() && rq.data().requirements) setRequirementsState(rq.data().requirements);
         setCloud("verbonden");
       } catch (e) {
         console.error("Laden uit Firestore mislukt:", e);
@@ -286,6 +296,11 @@ export function AppProvider({ children }) {
     const t = setTimeout(() => save("settings", { solverUrl }), 600);
     return () => clearTimeout(t);
   }, [solverUrl, loaded]);
+  useEffect(() => {
+    if (!loaded || !firebaseReady) return;
+    const t = setTimeout(() => save("requirements", { requirements: requirements }), 600);
+    return () => clearTimeout(t);
+  }, [requirements, loaded]);
 
   return (
     <AppContext.Provider value={{
@@ -298,6 +313,7 @@ export function AppProvider({ children }) {
       setWeekendPair, clearWeekendPair,
       weekdayDutyCount, weekendDutyCount,
       solverUrl, setSolverUrl,
+      requirements, setRequirements, clearRequirements,
       loaded, cloud, firebaseReady,
       today,
     }}>
