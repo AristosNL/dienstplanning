@@ -244,10 +244,26 @@ export default function DagPlanning() {
           preferOff:   s.preferOff    || [],
           absences:    s.absences     || [],
         }));
+      /* regel 3: jaar-eerlijkheid — tel per arts hoeveel OK/PBK/Poli al
+         gepland staat in HET HUIDIGE JAAR, en geef dat als startstand mee */
+      const yr = new Date().getFullYear();
+      const artsActIds = new Set(Object.values(REQUIREMENT_ACT_MAP));
+      const priorTotals = {};
+      for (const [key, val] of Object.entries(dagplanning)) {
+        if (!artsActIds.has(val?.activityId)) continue;
+        const parts = key.split("__");
+        if (parts.length < 4) continue;
+        const date = addDays(parts[0], parseInt(parts[2]));
+        if (!date.startsWith(String(yr))) continue;
+        const sid = parts[1];
+        priorTotals[sid] = (priorTotals[sid] || 0) + 1;
+      }
+
       const resp = await fetch(
         solverUrl.trim().replace(/\/$/, "") + "/solve-dagplanning",
         { method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({ requirements, doctors: eligibleDocs, reqActMap: REQUIREMENT_ACT_MAP }) }
+          body: JSON.stringify({ requirements, doctors: eligibleDocs,
+                                 reqActMap: REQUIREMENT_ACT_MAP, priorTotals }) }
       );
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();

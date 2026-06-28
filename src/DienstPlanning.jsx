@@ -139,7 +139,7 @@ export default function DienstPlanning() {
     setWeekendPair(date, { staffId: dragId, source: "manual" });
     setDragId(null);
   };
-  const clearWeekend  = () => weekStarts.forEach(s => { clearWeekendDuty(addDays(s,5)); clearWeekendDuty(addDays(s,6)); });
+  const clearWeekend  = () => weekStarts.forEach(s => clearWeekendPair(addDays(s, 5)));
 
   const generateWeekday = async () => {
     if (!solverUrl.trim()) { setSolveStatus({ state:"err", msg:"Vul eerst de solver-URL in." }); return; }
