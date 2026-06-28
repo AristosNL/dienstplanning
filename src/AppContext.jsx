@@ -20,7 +20,7 @@ export const ACT_WEEKDAY = "act_dienst_weekdag";
 export const ACT_WEEKEND = "act_dienst_weekend";
 
 /* mapping Excel-vereiste-type → activiteit-id in de app */
-export const REQUIREMENT_ACT_MAP = { "OK": "act_ok", "PBK": "act_pbk" };
+export const REQUIREMENT_ACT_MAP = { "OK": "act_ok", "PBK": "act_pbk", "Poli": "act_poli" };
 
 /* -- 10 zachte pastelkleuren ----------------------------------- */
 export const ACTIVITY_COLORS = [
@@ -171,6 +171,22 @@ export function AppProvider({ children }) {
   const [requirements, setRequirementsState] = useState({});
   const setRequirements  = (reqs) => setRequirementsState(reqs);
   const clearRequirements = ()   => setRequirementsState({});
+  /* uitkomst van de arts-solver: teruggegeven OK/PBK + berekende Poli */
+  const [returnedReqs, setReturnedReqs] = useState([]);   // [{date,period,type}]
+  const [poliReqs,     setPoliReqs]     = useState({});    // {date:{AM:n,PM:n}}
+  /* verwijder alle geplande OK/PBK/Poli (source:auto) uit de dagplanning */
+  const clearArtsPlanning = () => {
+    const artsActs = new Set(["act_ok","act_pbk","act_poli"]);
+    setDagplanning(p => {
+      const n = { ...p };
+      for (const k of Object.keys(n)) {
+        if (artsActs.has(n[k]?.activityId)) delete n[k];
+      }
+      return n;
+    });
+    setReturnedReqs([]);
+    setPoliReqs({});
+  };
   const [loaded,      setLoaded]          = useState(false);
   const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
 
@@ -314,6 +330,7 @@ export function AppProvider({ children }) {
       weekdayDutyCount, weekendDutyCount,
       solverUrl, setSolverUrl,
       requirements, setRequirements, clearRequirements,
+      returnedReqs, setReturnedReqs, poliReqs, setPoliReqs, clearArtsPlanning,
       loaded, cloud, firebaseReady,
       today,
     }}>

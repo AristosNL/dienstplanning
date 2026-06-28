@@ -230,6 +230,7 @@ export default function Admin() {
   const {
     activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
     requirements, setRequirements, clearRequirements, solverUrl,
+    returnedReqs, clearArtsPlanning,
   } = useApp();
 
   const [toDelAct,   setToDelAct] = useState(null);
@@ -364,6 +365,38 @@ export default function Admin() {
                 <span style={{ fontSize:12.5, color: importStatus==="ok" ? "#166534" : importStatus==="err" ? "#991b1b" : C.brand }}>
                   {importMsg}
                 </span>
+              </div>
+            )}
+
+            {/* test-knop: wis alle geplande OK/PBK/Poli */}
+            <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.line}`,
+                          display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+              <Btn danger onClick={clearArtsPlanning}>
+                <Trash2 size={13}/> Wis alle geplande OK / PBK / Poli
+              </Btn>
+              <span style={{ fontSize:11.5, color:C.mute }}>
+                Verwijdert alleen automatisch geplande arts-activiteiten uit de Dagplanning (voor testen).
+              </span>
+            </div>
+
+            {/* teruggeef-lijst */}
+            {returnedReqs.length > 0 && (
+              <div style={{ marginTop:14, padding:"10px 12px", borderRadius:8,
+                            background:"#fef2f2", border:"1px solid #fecaca" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+                  <AlertCircle size={14} color="#dc2626"/>
+                  <span style={{ fontSize:12.5, fontWeight:700, color:"#991b1b" }}>
+                    Teruggegeven door artsentekort ({returnedReqs.length})
+                  </span>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:2, maxHeight:180, overflowY:"auto" }}>
+                  {returnedReqs.map((r, i) => (
+                    <div key={i} style={{ fontSize:12, color:"#7f1d1d", display:"flex", gap:8 }}>
+                      <span style={{ fontWeight:700, minWidth:38 }}>{r.type}</span>
+                      <span>{r.date.split("-").reverse().join("-")} · {r.period === "AM" ? "ochtend" : "middag"}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

@@ -34,6 +34,14 @@ const DAYS    = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"];
 const DAYS_SH = ["ma","di","wo","do","vr"];
 const PERIODS = ["AM","PM"];
 const PER_LBL = { AM:"Mo", PM:"Mi" };       // ochtend / middag, zoals in het papieren rooster
+
+/* kleurcodering requirement-badges: okBg=ingepland (groen-tint), opBg=open.
+   OK & PBK krijgen dezelfde groen/oranje codering; Poli een blauw-tint open-staat. */
+const COL_FOR_REQ = {
+  OK:   { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#fff7ed", opInk:"#9a3412", opBd:"#fed7aa" },
+  PBK:  { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#fff7ed", opInk:"#9a3412", opBd:"#fed7aa" },
+  Poli: { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#eff6ff", opInk:"#1e40af", opBd:"#bfdbfe" },
+};
 const WD_MAP  = ["zo","ma","di","wo","do","vr","za"]; // JS getDay → code
 const FIXED_DAY_IDX = { ma:0, di:1, wo:2, do:3, vr:4 }; // fixedOff code → dagIdx (za/zo niet in grid)
 
@@ -217,7 +225,7 @@ function Notes({ weekKey }) {
 /* ── Hoofdcomponent ───────────────────────────────────────────── */
 export default function DagPlanning() {
   const { staff, activities, dagplanning, setDagAssign, clearDagAssign,
-          requirements, solverUrl } = useApp();
+          requirements, solverUrl, poliReqs, setReturnedReqs, setPoliReqs } = useApp();
   const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
   const [drag,      setDrag]      = useState(null);
   const [solveStatus, setSolveStatus] = useState(null); // null|"busy"|"ok"|"err"
@@ -244,10 +252,12 @@ export default function DagPlanning() {
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
 
-      /* schrijf terug naar dagplanning; overschrijf alleen lege of auto-cellen */
+      /* schrijf toewijzingen terug; overschrijf alleen lege of auto-cellen.
+         slotKey = "<date>__<period>__<type>__<i>" */
       for (const [slotKey, staffId] of Object.entries(data.assignments)) {
-        const [dateStr, period, reqType] = slotKey.split("__");
-        const actId = REQUIREMENT_ACT_MAP[reqType];
+        const parts   = slotKey.split("__");
+        const dateStr = parts[0], period = parts[1], reqType = parts[2];
+        const actId   = REQUIREMENT_ACT_MAP[reqType];
         if (!actId) continue;
         const wkMon  = mondayOf(dateStr);
         const dayIdx = (new Date(dateStr + "T00:00:00").getDay() + 6) % 7;
@@ -257,11 +267,14 @@ export default function DagPlanning() {
           setDagAssign(k, { activityId: actId, source: "auto" });
         }
       }
-      const { assigned, total, unassigned } = data.stats;
+      setReturnedReqs(data.returned || []);
+      setPoliReqs(data.poli || {});
+
+      const { assigned, total, returned } = data.stats;
       setSolveStatus("ok");
       setSolveMsg(
-        `${assigned}/${total} vereisten ingepland.` +
-        (unassigned > 0 ? ` ${unassigned} niet toewijsbaar (geen beschikbare arts).` : "")
+        `${assigned}/${total} ingepland.` +
+        (returned > 0 ? ` ${returned} teruggegeven (zie Beheer).` : "")
       );
     } catch {
       setSolveStatus("err");
@@ -273,16 +286,15 @@ export default function DagPlanning() {
   const dagActs = activities.filter(a => a.kind !== "dienst");
   const actById = Object.fromEntries(activities.map(a => [a.id, a]));
 
-  /* precompute welke activityIds ingepland zijn per datum+dagdeel (voor requirement-check) */
-  const assignedByDP = {};
+  /* precompute hoeveel keer elke activity ingepland is per datum+dagdeel */
+  const assignedCountByDP = {};
   for (const [key, val] of Object.entries(dagplanning)) {
     if (!val?.activityId || val.activityId === "VRIJ" || val.activityId === "X") continue;
     const parts = key.split("__");
     if (parts.length < 4) continue;
     const date = addDays(parts[0], parseInt(parts[2]));
-    const dp = `${date}__${parts[3]}`;
-    if (!assignedByDP[dp]) assignedByDP[dp] = new Set();
-    assignedByDP[dp].add(val.activityId);
+    const dp = `${date}__${parts[3]}__${val.activityId}`;
+    assignedCountByDP[dp] = (assignedCountByDP[dp] || 0) + 1;
   }
 
   /* tellingen voor de generate-banner */
@@ -290,9 +302,12 @@ export default function DagPlanning() {
     .reduce((n, v) => n + (v.AM?.length||0) + (v.PM?.length||0), 0);
   const openReqCount = Object.entries(requirements).reduce((n, [dt, periods]) => {
     for (const [period, types] of Object.entries(periods)) {
+      const counts = {};
       for (const rType of (Array.isArray(types) ? types : [])) {
         const actId = REQUIREMENT_ACT_MAP[rType];
-        if (actId && !assignedByDP[`${dt}__${period}`]?.has(actId)) n++;
+        if (!actId) continue;
+        counts[rType] = (counts[rType]||0) + 1;
+        if ((assignedCountByDP[`${dt}__${period}__${actId}`]||0) < counts[rType]) n++;
       }
     }
     return n;
@@ -453,28 +468,34 @@ export default function DagPlanning() {
                   </th>
                 ))}
               </tr>
-              {/* dagdelen + requirement-badges */}
+              {/* dagdelen + requirement-badges (OK/PBK uit Excel, Poli berekend) */}
               <tr>
                 {DAYS.map((d,i) => PERIODS.map(p => {
-                  const date   = dateOf(i);
-                  const reqs   = requirements[date]?.[p] || [];
+                  const date    = dateOf(i);
+                  const reqs    = [...(requirements[date]?.[p] || [])];
+                  const nPoli   = poliReqs[date]?.[p] || 0;
+                  for (let q=0; q<nPoli; q++) reqs.push("Poli");
                   return (
                     <th key={d+p} style={{ ...thBase, padding:"3px 4px", fontSize:10, color:C.sub,
                                            borderLeft: p==="AM" ? `2px solid ${C.line}` : "none" }}>
                       <span style={{ display:"inline-flex", alignItems:"center", gap:2 }}>
                         {p==="AM" ? <Sun size={10}/> : <Sunset size={10}/>}{PER_LBL[p]}
                       </span>
-                      {reqs.map(rType => {
+                      {reqs.map((rType, idx) => {
                         const actId     = REQUIREMENT_ACT_MAP[rType];
-                        const satisfied = assignedByDP[`${date}__${p}`]?.has(actId);
+                        const col       = COL_FOR_REQ[rType] || COL_FOR_REQ.OK;
+                        // satisfied = aantal ingeplande act van dit type >= positie idx+1
+                        const assignedCount = assignedCountByDP[`${date}__${p}__${actId}`] || 0;
+                        const myRank   = reqs.slice(0, idx+1).filter(t => t===rType).length;
+                        const satisfied = assignedCount >= myRank;
                         return (
-                          <span key={rType} style={{
+                          <span key={rType+idx} style={{
                             display:"block", marginTop:2, textAlign:"center",
                             fontSize:9, fontWeight:800, borderRadius:3,
                             padding:"1px 4px", letterSpacing:.3,
-                            background: satisfied ? "#dcfce7" : "#fff7ed",
-                            color:      satisfied ? "#166534" : "#9a3412",
-                            border:     `1px solid ${satisfied ? "#bbf7d0" : "#fed7aa"}`,
+                            background: satisfied ? col.okBg  : col.opBg,
+                            color:      satisfied ? col.okInk : col.opInk,
+                            border:     `1px solid ${satisfied ? col.okBd : col.opBd}`,
                           }}>{rType}</span>
                         );
                       })}
