@@ -241,6 +241,7 @@ export default function Admin() {
   const [pbkFile,      setPbkFile]      = useState(null);
   const [importStatus, setImportStatus] = useState(null); // null | "busy" | "ok" | "err"
   const [importMsg,    setImportMsg]    = useState("");
+  const [clearMsg,     setClearMsg]     = useState("");
 
   const reqCount = Object.values(requirements)
     .reduce((n, v) => n + (v.AM?.length || 0) + (v.PM?.length || 0), 0);
@@ -371,12 +372,20 @@ export default function Admin() {
             {/* test-knop: wis alle geplande OK/PBK/Poli */}
             <div style={{ marginTop:14, paddingTop:14, borderTop:`1px solid ${C.line}`,
                           display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-              <Btn danger onClick={clearArtsPlanning}>
+              <Btn danger onClick={() => {
+                const removed = clearArtsPlanning();
+                setClearMsg(`${removed} geplande arts-cel(len) verwijderd uit de Dagplanning.`);
+              }}>
                 <Trash2 size={13}/> Wis alle geplande OK / PBK / Poli
               </Btn>
               <span style={{ fontSize:11.5, color:C.mute }}>
-                Verwijdert alleen automatisch geplande arts-activiteiten uit de Dagplanning (voor testen).
+                Verwijdert alle OK/PBK/Poli-toewijzingen uit de Dagplanning (voor testen).
               </span>
+              {clearMsg && (
+                <span style={{ fontSize:12, color:"#166534", display:"inline-flex", alignItems:"center", gap:4 }}>
+                  <CheckCircle2 size={13}/> {clearMsg}
+                </span>
+              )}
             </div>
 
             {/* teruggeef-lijst */}

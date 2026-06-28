@@ -174,18 +174,22 @@ export function AppProvider({ children }) {
   /* uitkomst van de arts-solver: teruggegeven OK/PBK + berekende Poli */
   const [returnedReqs, setReturnedReqs] = useState([]);   // [{date,period,type}]
   const [poliReqs,     setPoliReqs]     = useState({});    // {date:{AM:n,PM:n}}
-  /* verwijder alle geplande OK/PBK/Poli (source:auto) uit de dagplanning */
+  /* verwijder alle geplande OK/PBK/Poli uit de dagplanning (ongeacht source).
+     Retourneert het aantal verwijderde cellen zodat de UI feedback kan geven. */
   const clearArtsPlanning = () => {
-    const artsActs = new Set(["act_ok","act_pbk","act_poli"]);
+    const artsActs = new Set(["act_ok", "act_pbk", "act_poli"]);
+    let removed = 0;
     setDagplanning(p => {
-      const n = { ...p };
-      for (const k of Object.keys(n)) {
-        if (artsActs.has(n[k]?.activityId)) delete n[k];
+      const n = {};
+      for (const [k, v] of Object.entries(p)) {
+        if (artsActs.has(v?.activityId)) { removed++; continue; }
+        n[k] = v;
       }
       return n;
     });
     setReturnedReqs([]);
     setPoliReqs({});
+    return removed;
   };
   const [loaded,      setLoaded]          = useState(false);
   const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
