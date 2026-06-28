@@ -17,6 +17,7 @@ import { useState, useEffect, Fragment } from "react";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Bot, Hand, Upload,
   AlertTriangle, X, Plus, Trash2, StickyNote, Sun, Sunset,
+  Loader2, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, GROUPS, REQUIREMENT_ACT_MAP } from "./AppContext";
 
@@ -215,9 +216,58 @@ function Notes({ weekKey }) {
 
 /* ── Hoofdcomponent ───────────────────────────────────────────── */
 export default function DagPlanning() {
-  const { staff, activities, dagplanning, setDagAssign, clearDagAssign, requirements } = useApp();
+  const { staff, activities, dagplanning, setDagAssign, clearDagAssign,
+          requirements, solverUrl } = useApp();
   const [weekStart, setWeekStart] = useState(mondayOf(iso(new Date())));
-  const [drag, setDrag] = useState(null); // { type:"activity"|"status", id }
+  const [drag,      setDrag]      = useState(null);
+  const [solveStatus, setSolveStatus] = useState(null); // null|"busy"|"ok"|"err"
+  const [solveMsg,    setSolveMsg]    = useState("");
+
+  /* artsen automatisch matchen aan vereisten via CP-SAT solver */
+  const generateArtsRooster = async () => {
+    setSolveStatus("busy"); setSolveMsg("Artsen worden gepland…");
+    try {
+      const eligibleDocs = staff
+        .filter(s => s.activityIds?.some(id => Object.values(REQUIREMENT_ACT_MAP).includes(id)))
+        .map(s => ({
+          id:          s.id,
+          activityIds: s.activityIds  || [],
+          fixedOff:    s.fixedOff     || [],
+          preferOff:   s.preferOff    || [],
+          absences:    s.absences     || [],
+        }));
+      const resp = await fetch(
+        solverUrl.trim().replace(/\/$/, "") + "/solve-dagplanning",
+        { method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ requirements, doctors: eligibleDocs, reqActMap: REQUIREMENT_ACT_MAP }) }
+      );
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+
+      /* schrijf terug naar dagplanning; overschrijf alleen lege of auto-cellen */
+      for (const [slotKey, staffId] of Object.entries(data.assignments)) {
+        const [dateStr, period, reqType] = slotKey.split("__");
+        const actId = REQUIREMENT_ACT_MAP[reqType];
+        if (!actId) continue;
+        const wkMon  = mondayOf(dateStr);
+        const dayIdx = (new Date(dateStr + "T00:00:00").getDay() + 6) % 7;
+        const k      = `${wkMon}__${staffId}__${dayIdx}__${period}`;
+        const existing = dagplanning[k];
+        if (!existing || existing.source === "auto") {
+          setDagAssign(k, { activityId: actId, source: "auto" });
+        }
+      }
+      const { assigned, total, unassigned } = data.stats;
+      setSolveStatus("ok");
+      setSolveMsg(
+        `${assigned}/${total} vereisten ingepland.` +
+        (unassigned > 0 ? ` ${unassigned} niet toewijsbaar (geen beschikbare arts).` : "")
+      );
+    } catch {
+      setSolveStatus("err");
+      setSolveMsg("Plannen mislukt. Draait de solver-service en klopt de URL in Dienstplanning?");
+    }
+  };
 
   /* alleen dag-activiteiten in palet/grid; dienst-activiteiten horen hier niet */
   const dagActs = activities.filter(a => a.kind !== "dienst");
@@ -235,7 +285,18 @@ export default function DagPlanning() {
     assignedByDP[dp].add(val.activityId);
   }
 
-  /* auto-fill "VRIJ" voor vaste vrije dagen; cleanup verouderde auto-entries */
+  /* tellingen voor de generate-banner */
+  const reqCount = Object.values(requirements)
+    .reduce((n, v) => n + (v.AM?.length||0) + (v.PM?.length||0), 0);
+  const openReqCount = Object.entries(requirements).reduce((n, [dt, periods]) => {
+    for (const [period, types] of Object.entries(periods)) {
+      for (const rType of (Array.isArray(types) ? types : [])) {
+        const actId = REQUIREMENT_ACT_MAP[rType];
+        if (actId && !assignedByDP[`${dt}__${period}`]?.has(actId)) n++;
+      }
+    }
+    return n;
+  }, 0);
   useEffect(() => {
     staff.forEach(s => {
       for (let dayIdx = 0; dayIdx < 5; dayIdx++) {
@@ -311,6 +372,46 @@ export default function DagPlanning() {
             Deze week
           </button>
         </div>
+
+        {/* generate-banner: zichtbaar als er vereisten geladen zijn */}
+        {reqCount > 0 && (
+          <div style={{ padding:"0 0 10px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap",
+                          padding:"9px 14px", borderRadius:8, background:"#fff7ed",
+                          border:`1px solid #fed7aa` }}>
+              <Bot size={15} color="#9a3412"/>
+              <span style={{ fontSize:12.5, color:C.ink }}>
+                <strong>{reqCount}</strong> vereisten geladen
+                {openReqCount > 0 && (
+                  <span style={{ color:"#9a3412" }}> · <strong>{openReqCount}</strong> nog open</span>
+                )}
+                {openReqCount === 0 && reqCount > 0 && (
+                  <span style={{ color:"#16a34a" }}> · alles ingepland</span>
+                )}
+              </span>
+              <button
+                onClick={generateArtsRooster}
+                disabled={solveStatus==="busy" || !solverUrl?.trim()}
+                style={{ display:"inline-flex", alignItems:"center", gap:6, marginLeft:4,
+                         borderRadius:7, padding:"5px 14px", fontSize:12.5, fontWeight:700,
+                         cursor: solverUrl?.trim() ? "pointer" : "not-allowed",
+                         background: C.brand, color:"#fff", border:"none",
+                         opacity: (solveStatus==="busy" || !solverUrl?.trim()) ? .65 : 1 }}>
+                {solveStatus === "busy"
+                  ? <><Loader2 size={13}/> Bezig…</>
+                  : <><Bot size={13}/> Genereer arts-rooster</>}
+              </button>
+              {solveMsg && (
+                <span style={{ fontSize:12, display:"inline-flex", alignItems:"center", gap:4,
+                               color: solveStatus==="ok" ? "#166534" : "#991b1b" }}>
+                  {solveStatus==="ok"  && <CheckCircle2 size={13}/>}
+                  {solveStatus==="err" && <AlertCircle  size={13}/>}
+                  {solveMsg}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* palet */}
         <div style={{ position:"sticky", top:0, zIndex:5, background:C.panel,
