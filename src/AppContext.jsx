@@ -234,7 +234,8 @@ export function AppProvider({ children }) {
     const isSat = new Date(date + "T00:00:00").getDay() === 6;
     const other = new Date(date + "T00:00:00");
     other.setDate(other.getDate() + (isSat ? 1 : -1));
-    return other.toISOString().slice(0, 10);
+    const y = other.getFullYear(), m = String(other.getMonth()+1).padStart(2,"0"), d = String(other.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
   };
   const setWeekendDuty    = (date, val) => setDienstWeekend(p => ({ ...p, [date]: val }));
   const setWeekendPair    = (date, val) => { const pair=_wePair(date); setDienstWeekend(p => ({ ...p, [date]: val, [pair]: val })); };
