@@ -14,16 +14,10 @@ import {
   Clock, ChevronLeft, ChevronRight, AlertTriangle, Check, Minus,
 } from "lucide-react";
 import { useApp, GROUPS } from "./AppContext";
+import C from "./tokens";
 
 const VERSION = "v1";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
-  ink:"#0f172a", sub:"#475569", mute:"#94a3b8",
-  line:"#e2e8f0", panel:"#f8fafc", white:"#ffffff",
-  ok:"#16a34a", okBg:"#f0fdf4", warn:"#d97706", warnBg:"#fffbeb",
-  err:"#dc2626", errBg:"#fef2f2",
-};
 
 /* date helpers */
 const iso = (d) => { const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; };

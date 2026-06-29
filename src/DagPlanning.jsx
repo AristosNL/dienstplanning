@@ -20,15 +20,10 @@ import {
   Loader2, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, GROUPS, REQUIREMENT_ACT_MAP } from "./AppContext";
+import C from "./tokens";
 
 const VERSION = "v1";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
-  ink:"#0f172a", sub:"#475569", mute:"#94a3b8",
-  line:"#e2e8f0", panel:"#f8fafc", white:"#ffffff",
-  err:"#dc2626", warn:"#d97706",
-};
 
 const DAYS    = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"];
 const DAYS_SH = ["ma","di","wo","do","vr"];
@@ -40,7 +35,7 @@ const PER_LBL = { AM:"Mo", PM:"Mi" };       // ochtend / middag, zoals in het pa
 const COL_FOR_REQ = {
   OK:   { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#fff7ed", opInk:"#9a3412", opBd:"#fed7aa" },
   PBK:  { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#fff7ed", opInk:"#9a3412", opBd:"#fed7aa" },
-  Poli: { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:"#eff6ff", opInk:"#1e40af", opBd:"#bfdbfe" },
+  Poli: { okBg:"#dcfce7", okInk:"#166534", okBd:"#bbf7d0", opBg:C.brandLt, opInk:"#1e40af", opBd:"#bfdbfe" },
 };
 const WD_MAP  = ["zo","ma","di","wo","do","vr","za"]; // JS getDay → code
 const FIXED_DAY_IDX = { ma:0, di:1, wo:2, do:3, vr:4 }; // fixedOff code → dagIdx (za/zo niet in grid)
@@ -48,7 +43,7 @@ const FIXED_DAY_IDX = { ma:0, di:1, wo:2, do:3, vr:4 }; // fixedOff code → dag
 /* speciale niet-activiteit statussen */
 const STATUS = {
   VRIJ: { code:"vrij", label:"Vrij",         bg:"#ecfdf5", ink:"#047857", border:"#a7f3d0" },
-  X:    { code:"x",    label:"Niet werkzaam", bg:"#f8fafc", ink:"#94a3b8", border:"#e2e8f0" },
+  X:    { code:"x",    label:"Niet werkzaam", bg:C.panel, ink:C.mute, border:C.line },
 };
 
 /* ── date helpers ─────────────────────────────────────────────── */
@@ -426,7 +421,7 @@ export default function DagPlanning() {
                 style={{ display:"inline-flex", alignItems:"center", gap:6, marginLeft:4,
                          borderRadius:7, padding:"5px 14px", fontSize:12.5, fontWeight:700,
                          cursor: solverUrl?.trim() ? "pointer" : "not-allowed",
-                         background: C.brand, color:"#fff", border:"none",
+                         background:C.brand, color:"#fff", border:"none",
                          opacity: (solveStatus==="busy" || !solverUrl?.trim()) ? .65 : 1 }}>
                 {solveStatus === "busy"
                   ? <><Loader2 size={13}/> Bezig…</>

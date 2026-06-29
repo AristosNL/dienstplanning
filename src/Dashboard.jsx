@@ -15,20 +15,16 @@ import {
   LayoutDashboard, ChevronLeft, ChevronRight, User, Layers, Sun, Sunset, Stethoscope,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, GROUPS } from "./AppContext";
+import C from "./tokens";
 
 const VERSION = "v1";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
-  ink:"#0f172a", sub:"#475569", mute:"#94a3b8",
-  line:"#e2e8f0", panel:"#f8fafc", white:"#ffffff",
-};
 
 const DAYS    = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"];
 const PERIODS = [["AM","Ochtend",Sun],["PM","Middag",Sunset]];
 const STATUS  = {
   VRIJ:{ code:"Vrij", bg:"#ecfdf5", ink:"#047857", border:"#a7f3d0" },
-  X:   { code:"x",    bg:"#f8fafc", ink:"#94a3b8", border:"#e2e8f0" },
+  X:   { code:"x",    bg:C.panel, ink:C.mute, border:C.line },
 };
 
 const iso=(d)=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dy}`;};

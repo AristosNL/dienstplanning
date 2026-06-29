@@ -14,15 +14,10 @@ import {
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
+import C from "./tokens";
 
 const VERSION = "v4";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
-  ink:"#0f172a", sub:"#475569", mute:"#94a3b8",
-  line:"#e2e8f0", panel:"#f8fafc", white:"#ffffff",
-  ok:"#16a34a", err:"#dc2626", warn:"#d97706",
-};
 
 const ACT_CATS   = ["Huidtherapeut", "Arts", "PA", "DA", "Secretarieel", "Opleiding", "Dienst"];
 const PERIODS    = ["AM", "PM"];
@@ -289,7 +284,7 @@ export default function Admin() {
     <div style={{ background:C.panel, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
 
       {/* header */}
-      <div style={{ background:`linear-gradient(180deg,${C.brand} 0%,${C.brandDk} 100%)`,
+      <div style={{ background:C.sidebarBg,
                     color:"#fff", padding:"18px 22px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <Settings size={22}/>
@@ -359,7 +354,7 @@ export default function Admin() {
             {importMsg && (
               <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:12,
                             padding:"8px 12px", borderRadius:8,
-                            background: importStatus==="ok" ? "#f0fdf4" : importStatus==="err" ? "#fef2f2" : "#eff6ff",
+                            background: importStatus==="ok" ? "#f0fdf4" : importStatus==="err" ? "#fef2f2" : C.brandLt,
                             border: `1px solid ${importStatus==="ok" ? "#bbf7d0" : importStatus==="err" ? "#fecaca" : "#bfdbfe"}` }}>
                 {importStatus==="ok"  && <CheckCircle2 size={14} color="#16a34a"/>}
                 {importStatus==="err" && <AlertCircle  size={14} color="#dc2626"/>}

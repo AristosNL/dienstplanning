@@ -13,21 +13,8 @@ import {
 } from "lucide-react";
 import { useApp, GROUPS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
+import C from "./tokens";
 
-const C = {
-  brand:   "#1d4ed8",
-  brandDk: "#1e3a8a",
-  brandLt: "#eff6ff",
-  ink:     "#0f172a",
-  sub:     "#475569",
-  mute:    "#94a3b8",
-  line:    "#e2e8f0",
-  panel:   "#f8fafc",
-  white:   "#ffffff",
-  ok:      "#16a34a",
-  warn:    "#d97706",
-  err:     "#dc2626",
-};
 
 const ROLES = [
   { id: "dokter",      label: "Dokter",        color: "#dbeafe", ink: "#1e40af" },
@@ -411,7 +398,7 @@ export default function Personeel() {
         </div>
 
         <div style={{ borderRadius:8, padding:"10px 14px", display:"flex", gap:8,
-                      background:"#eff6ff", border:`1px solid #bfdbfe` }}>
+                      background:C.brandLt, border:`1px solid #bfdbfe` }}>
           <Clock size={15} color={C.brand} style={{ marginTop:1, flexShrink:0 }}/>
           <p style={{ fontSize:12, color:"#1e40af", margin:0 }}>
             <strong>Koppeling engine:</strong> elk personeelsrecord exporteert als{" "}

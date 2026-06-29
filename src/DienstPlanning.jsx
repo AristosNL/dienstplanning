@@ -13,7 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, ReferenceLine, 
 import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, ACT_WEEKDAY, ACT_WEEKEND } from "./AppContext";
 
-const BRAND="#1d4ed8", BRAND_DK="#1e3a8a", INK="#0f172a", MUTE="#64748b", LINE="#e2e8f0", PANEL="#f8fafc";
+import C from "./tokens";
+const BRAND=C.brand, BRAND_DK=C.brandDk, INK=C.ink, MUTE=C.mute, LINE=C.line, PANEL=C.panel;
 const WD = ["ma","di","wo","do","vr"];
 const fmt = (iso) => iso.split("-").reverse().join("-");
 const addDays = (iso,n) => { const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
@@ -22,7 +23,7 @@ const localToday = () => { const n=new Date(); const y=n.getFullYear(),m=String(
 function isoWeek(iso){ const d=new Date(iso+"T00:00:00"),t=new Date(d.valueOf());const n=(d.getDay()+6)%7;t.setDate(t.getDate()-n+3);const f=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-f)/86400000-3+((f.getDay()+6)%7))/7);}
 
 const SourceTag = ({ kind }) => {
-  const m = { auto:{Icon:Bot,c:"#2563eb"}, manual:{Icon:Hand,c:"#7c3aed"}, import:{Icon:Upload,c:"#0891b2"} }[kind];
+  const m = { auto:{Icon:Bot,c:C.brand}, manual:{Icon:Hand,c:"#7c3aed"}, import:{Icon:Upload,c:"#0891b2"} }[kind];
   if (!m) return null;
   const { Icon, c } = m;
   return <Icon size={11} color={c} strokeWidth={2.4} />;
