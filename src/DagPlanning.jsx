@@ -364,20 +364,7 @@ export default function DagPlanning() {
   return (
     <div style={{ background:C.panel, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
 
-      {/* header */}
-      <div style={{ background:`linear-gradient(180deg,${C.brand} 0%,${C.brandDk} 100%)`,
-                    color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <CalendarDays size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Dagelijkse planning</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>{VERSION}</span>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
-          Medewerkers × dagdelen · sleep activiteiten in de cellen
-        </p>
-      </div>
-
-      <div style={{ padding:"20px 4px" }}>
+      <div style={{ padding:"12px 4px 20px" }}>
 
         {/* weeknavigatie */}
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
@@ -441,11 +428,10 @@ export default function DagPlanning() {
 
         {/* palet */}
         <div style={{ position:"sticky", top:0, zIndex:5, background:C.panel,
-                      padding:"6px 0 12px", marginBottom:4 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:C.mute, marginBottom:6, letterSpacing:.5 }}>
-            PALET — sleep naar een cel
-          </p>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                      padding:"2px 0 6px", marginBottom:2 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:5, alignItems:"center" }}>
+            <span style={{ fontSize:10, fontWeight:700, color:C.mute, letterSpacing:.4,
+                           marginRight:4 }}>PALET</span>
             {dagActs.map(a => {
               const col = ACTIVITY_COLORS[a.colorIdx ?? 0];
               return (
@@ -468,11 +454,11 @@ export default function DagPlanning() {
               {/* dagen */}
               <tr>
                 <th rowSpan={2} style={{ ...stickyName, ...thBase, zIndex:3, textAlign:"left",
-                                         padding:"8px 12px", verticalAlign:"bottom" }}>
+                                         padding:"5px 12px", verticalAlign:"bottom" }}>
                   Medewerker
                 </th>
                 {DAYS.map((d,i) => (
-                  <th key={d} colSpan={2} style={{ ...thBase, textAlign:"center", padding:"7px 4px",
+                  <th key={d} colSpan={2} style={{ ...thBase, textAlign:"center", padding:"4px 4px",
                                                    borderLeft:`2px solid ${C.line}` }}>
                     <div style={{ fontWeight:700, fontSize:12.5, color:C.ink }}>{d}</div>
                     <div style={{ fontSize:10.5, color:C.mute }}>{fmtShort(dateOf(i))}</div>
@@ -487,7 +473,7 @@ export default function DagPlanning() {
                   const nPoli   = poliReqs[date]?.[p] || 0;
                   for (let q=0; q<nPoli; q++) reqs.push("Poli");
                   return (
-                    <th key={d+p} style={{ ...thBase, padding:"3px 4px", fontSize:10, color:C.sub,
+                    <th key={d+p} style={{ ...thBase, padding:"2px 4px", fontSize:10, color:C.sub,
                                            borderLeft: p==="AM" ? `2px solid ${C.line}` : "none" }}>
                       <span style={{ display:"inline-flex", alignItems:"center", gap:2 }}>
                         {p==="AM" ? <Sun size={10}/> : <Sunset size={10}/>}{PER_LBL[p]}

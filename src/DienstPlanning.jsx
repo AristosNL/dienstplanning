@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
-import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Bot, Hand, Upload, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, ACT_WEEKDAY, ACT_WEEKEND } from "./AppContext";
 
 import C from "./tokens";
@@ -194,13 +194,9 @@ export default function DienstPlanning() {
   return (
     <div style={{ background:PANEL, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
       {/* header */}
-      <div style={{ background:`linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DK} 100%)`, color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <CalendarDays size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Dienstplanning</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>v3</span>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
+      <div style={{ padding:"14px 22px 0" }}>
+        <h1 style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2, margin:0, color:INK }}>Dienstplanning</h1>
+        <p style={{ color:MUTE, fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Weekdienst automatisch (CP-SAT) · weekenddienst handmatig · gescheiden saldi
         </p>
       </div>

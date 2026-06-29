@@ -338,13 +338,9 @@ export default function Personeel() {
 
   return (
     <div style={{ background:C.panel, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
-      <div style={{ background:`linear-gradient(180deg, ${C.brand} 0%, ${C.brandDk} 100%)`,
-                    color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <Users size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2 }}>Personeelsbeheer</h1>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2 }}>
+      <div style={{ padding:"14px 22px 0" }}>
+        <h1 style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2, margin:0, color:C.ink }}>Personeelsbeheer</h1>
+        <p style={{ color:C.mute, fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Contracturen · vrije dagen · vakanties &amp; cursussen · activiteiten
         </p>
       </div>

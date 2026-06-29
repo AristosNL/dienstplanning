@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import {
-  Clock, ChevronLeft, ChevronRight, AlertTriangle, Check, Minus,
+  ChevronLeft, ChevronRight, AlertTriangle, Check, Minus,
 } from "lucide-react";
 import { useApp, GROUPS } from "./AppContext";
 import C from "./tokens";
@@ -116,14 +116,9 @@ export default function Urencheck() {
   return (
     <div style={{ background:C.panel, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
       {/* header */}
-      <div style={{ background:`linear-gradient(180deg,${C.brand} 0%,${C.brandDk} 100%)`,
-                    color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <Clock size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Urencheck</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>{VERSION}</span>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
+      <div style={{ padding:"14px 22px 0" }}>
+        <h1 style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2, margin:0, color:C.ink }}>Urencheck</h1>
+        <p style={{ color:C.mute, fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Geplande uren vs. contracturen per week
         </p>
       </div>
