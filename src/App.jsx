@@ -69,7 +69,7 @@ function Shell({ user }) {
   const [page, setPage] = useState("dag");
 
   return (
-    <div style={{ display:"flex", minHeight:"100vh",
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden",
                   fontFamily:T.fontBody, background:T.panel }}>
 
       {/* ── SIDEBAR ─────────────────────────────────────────── */}

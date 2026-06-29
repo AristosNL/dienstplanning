@@ -120,6 +120,7 @@ function PaletteChip({ label, bg, ink, border, onDragStart }) {
 }
 
 /* ── één cel ──────────────────────────────────────────────────── */
+/* Geeft alleen de binnenste div terug — de <td> wrapper zit in de aanroep */
 function Cell({ assignment, conflict, soft, activity, onDrop, onClear }) {
   const [hover, setHover] = useState(false);
 
@@ -137,33 +138,31 @@ function Cell({ assignment, conflict, soft, activity, onDrop, onClear }) {
   }
 
   return (
-    <td style={{ padding:"2px 1px", height:34 }}>
-      <div
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        onDragOver={(e)=>e.preventDefault()}
-        onDrop={onDrop}
-        title={conflict ? `Conflict: ${conflict}` : soft ? `Let op: ${soft}` : (activity?.label || "")}
-        style={{
-          position:"relative", height:"100%", width:"100%", minWidth:55,
-          borderRadius:5, background:bg,
-          border: conflict ? `2px solid ${C.err}` : dashed ? `1.5px dashed ${C.line}` : `1px solid ${border}`,
-          display:"flex", alignItems:"center", justifyContent:"center", gap:3,
-          fontSize:11.5, fontWeight:700, color:ink, cursor:"default",
-        }}>
-        {content}
-        {conflict && <AlertTriangle size={10} color={C.err} style={{ position:"absolute", top:1, left:2 }} />}
-        {soft && !conflict && <span style={{ position:"absolute", top:0, left:3, color:C.warn, fontSize:12, lineHeight:1 }}>•</span>}
-        {assignment && <span style={{ position:"absolute", bottom:1, right:2 }}><SourceIcon source={assignment.source} /></span>}
-        {assignment && hover && (
-          <button onClick={onClear}
-            style={{ position:"absolute", top:1, right:1, lineHeight:0, color:ink,
-                     background:bg, borderRadius:3 }}>
-            <X size={11} />
-          </button>
-        )}
-      </div>
-    </td>
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onDragOver={(e)=>e.preventDefault()}
+      onDrop={onDrop}
+      title={conflict ? `Conflict: ${conflict}` : soft ? `Let op: ${soft}` : (activity?.label || "")}
+      style={{
+        position:"relative", height:"100%", width:"100%",
+        borderRadius:5, background:bg,
+        border: conflict ? `2px solid ${C.err}` : dashed ? `1.5px dashed ${C.line}` : `1px solid ${border}`,
+        display:"flex", alignItems:"center", justifyContent:"center", gap:3,
+        fontSize:11.5, fontWeight:700, color:ink, cursor:"default",
+      }}>
+      {content}
+      {conflict && <AlertTriangle size={10} color={C.err} style={{ position:"absolute", top:1, left:2 }} />}
+      {soft && !conflict && <span style={{ position:"absolute", top:0, left:3, color:C.warn, fontSize:12, lineHeight:1 }}>•</span>}
+      {assignment && <span style={{ position:"absolute", bottom:1, right:2 }}><SourceIcon source={assignment.source} /></span>}
+      {assignment && hover && (
+        <button onClick={onClear}
+          style={{ position:"absolute", top:1, right:1, lineHeight:0, color:ink,
+                   background:bg, borderRadius:3 }}>
+          <X size={11} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -532,8 +531,11 @@ export default function DagPlanning() {
                           soft = r.soft.join(", ");
                         }
                         return (
-                          <td key={k} style={{ borderLeft: period==="AM" ? `2px solid ${C.line}` : "none",
-                                               borderTop:`1px solid ${C.line}` }}>
+                          <td key={k} style={{
+                            padding:"2px 1px", height:34,
+                            borderLeft: period==="AM" ? `2px solid ${C.line}` : "none",
+                            borderTop:`1px solid ${C.line}`,
+                          }}>
                             <Cell
                               assignment={asg}
                               activity={act}
