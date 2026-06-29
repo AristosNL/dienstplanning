@@ -137,7 +137,7 @@ function Cell({ assignment, conflict, soft, activity, onDrop, onClear }) {
   }
 
   return (
-    <td style={{ padding:2, height:34 }}>
+    <td style={{ padding:"2px 1px", height:34 }}>
       <div
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -426,9 +426,11 @@ export default function DagPlanning() {
           </div>
         )}
 
-        {/* palet */}
-        <div style={{ position:"sticky", top:0, zIndex:5, background:C.panel,
-                      padding:"2px 0 6px", marginBottom:2 }}>
+        {/* palet — blijft sticky bovenin tijdens scrollen */}
+        <div style={{ position:"sticky", top:0, zIndex:20, background:C.panel,
+                      padding:"6px 4px 8px", margin:"0 -4px 2px",
+                      boxShadow:`0 4px 8px -4px rgba(45,19,51,0.12)`,
+                      borderBottom:`1px solid ${C.line}` }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:5, alignItems:"center" }}>
             <span style={{ fontSize:10, fontWeight:700, color:C.mute, letterSpacing:.4,
                            marginRight:4 }}>PALET</span>
@@ -449,7 +451,7 @@ export default function DagPlanning() {
 
         {/* grid */}
         <div style={{ overflowX:"auto", borderRadius:12, border:`1px solid ${C.line}`, background:C.white }}>
-          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:912, width:"100%" }}>
+          <table style={{ borderCollapse:"separate", borderSpacing:0, minWidth:912, width:"100%", tableLayout:"fixed" }}>
             <thead>
               {/* dagen */}
               <tr>
@@ -572,5 +574,5 @@ const navBtn = {
   width:34, height:34, borderRadius:8, border:`1px solid ${C.line}`,
   background:C.white, color:C.sub, cursor:"pointer",
 };
-const thBase = { background:C.panel, borderBottom:`1px solid ${C.line}`, position:"sticky", top:0, zIndex:2 };
-const stickyName = { position:"sticky", left:0, background:C.white, zIndex:2, minWidth:155, borderRight:`2px solid ${C.line}` };
+const thBase = { background:C.panel, borderBottom:`1px solid ${C.line}` };
+const stickyName = { position:"sticky", left:0, background:C.white, zIndex:2, width:155, minWidth:155, borderRight:`2px solid ${C.line}` };
