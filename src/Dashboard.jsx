@@ -12,23 +12,19 @@
 
 import { useState } from "react";
 import {
-  LayoutDashboard, ChevronLeft, ChevronRight, User, Layers, Sun, Sunset, Stethoscope,
+  ChevronLeft, ChevronRight, User, Layers, Sun, Sunset, Stethoscope,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, GROUPS } from "./AppContext";
+import C from "./tokens";
 
 const VERSION = "v1";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", brandLt:"#eff6ff",
-  ink:"#0f172a", sub:"#475569", mute:"#94a3b8",
-  line:"#e2e8f0", panel:"#f8fafc", white:"#ffffff",
-};
 
 const DAYS    = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"];
 const PERIODS = [["AM","Ochtend",Sun],["PM","Middag",Sunset]];
 const STATUS  = {
   VRIJ:{ code:"Vrij", bg:"#ecfdf5", ink:"#047857", border:"#a7f3d0" },
-  X:   { code:"x",    bg:"#f8fafc", ink:"#94a3b8", border:"#e2e8f0" },
+  X:   { code:"x",    bg:C.panel, ink:C.mute, border:C.line },
 };
 
 const iso=(d)=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${dy}`;};
@@ -52,14 +48,9 @@ export default function Dashboard() {
   return (
     <div style={{ background:C.panel, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
       {/* header */}
-      <div style={{ background:`linear-gradient(180deg,${C.brand} 0%,${C.brandDk} 100%)`,
-                    color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <LayoutDashboard size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Dashboard</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>{VERSION}</span>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
+      <div style={{ padding:"14px 22px 0" }}>
+        <h1 style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2, margin:0, color:C.ink }}>Dashboard</h1>
+        <p style={{ color:C.mute, fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Wie werkt waar — per medewerker of per activiteit
         </p>
       </div>

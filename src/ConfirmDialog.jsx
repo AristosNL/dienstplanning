@@ -19,21 +19,8 @@
  */
 
 import { AlertTriangle, Trash2, X } from "lucide-react";
+import C from "./tokens";
 
-const C = {
-  brand:  "#1d4ed8",
-  ink:    "#0f172a",
-  sub:    "#475569",
-  line:   "#e2e8f0",
-  err:    "#dc2626",
-  errLt:  "#fff1f2",
-  errBd:  "#fecaca",
-  warn:   "#d97706",
-  warnLt: "#fffbeb",
-  warnBd: "#fde68a",
-  white:  "#ffffff",
-  overlay:"rgba(15,23,42,0.45)",
-};
 
 export default function ConfirmDialog({ open, title, description, impact = [], onConfirm, onCancel }) {
   if (!open) return null;

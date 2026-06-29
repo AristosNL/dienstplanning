@@ -10,10 +10,11 @@
 
 import { useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Cell, ResponsiveContainer, ReferenceLine, LabelList } from "recharts";
-import { Bot, Hand, Upload, CalendarDays, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Bot, Hand, Upload, Scale, RotateCcw, X, Play, Loader2, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useApp, ACTIVITY_COLORS, ACT_WEEKDAY, ACT_WEEKEND } from "./AppContext";
 
-const BRAND="#1d4ed8", BRAND_DK="#1e3a8a", INK="#0f172a", MUTE="#64748b", LINE="#e2e8f0", PANEL="#f8fafc";
+import C from "./tokens";
+const BRAND=C.brand, BRAND_DK=C.brandDk, INK=C.ink, MUTE=C.mute, LINE=C.line, PANEL=C.panel;
 const WD = ["ma","di","wo","do","vr"];
 const fmt = (iso) => iso.split("-").reverse().join("-");
 const addDays = (iso,n) => { const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+n); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dy=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
@@ -22,7 +23,7 @@ const localToday = () => { const n=new Date(); const y=n.getFullYear(),m=String(
 function isoWeek(iso){ const d=new Date(iso+"T00:00:00"),t=new Date(d.valueOf());const n=(d.getDay()+6)%7;t.setDate(t.getDate()-n+3);const f=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-f)/86400000-3+((f.getDay()+6)%7))/7);}
 
 const SourceTag = ({ kind }) => {
-  const m = { auto:{Icon:Bot,c:"#2563eb"}, manual:{Icon:Hand,c:"#7c3aed"}, import:{Icon:Upload,c:"#0891b2"} }[kind];
+  const m = { auto:{Icon:Bot,c:C.brand}, manual:{Icon:Hand,c:"#7c3aed"}, import:{Icon:Upload,c:"#0891b2"} }[kind];
   if (!m) return null;
   const { Icon, c } = m;
   return <Icon size={11} color={c} strokeWidth={2.4} />;
@@ -193,13 +194,9 @@ export default function DienstPlanning() {
   return (
     <div style={{ background:PANEL, minHeight:"100%", fontFamily:"ui-sans-serif, system-ui, sans-serif" }}>
       {/* header */}
-      <div style={{ background:`linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DK} 100%)`, color:"#fff", padding:"18px 22px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <CalendarDays size={22}/>
-          <h1 style={{ fontWeight:700, fontSize:19, letterSpacing:-0.2, margin:0 }}>Dienstplanning</h1>
-          <span style={{ fontSize:11, color:"#93c5fd", marginLeft:4 }}>v3</span>
-        </div>
-        <p style={{ color:"#dbeafe", fontSize:12.5, marginTop:2, marginBottom:0 }}>
+      <div style={{ padding:"14px 22px 0" }}>
+        <h1 style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2, margin:0, color:INK }}>Dienstplanning</h1>
+        <p style={{ color:MUTE, fontSize:12.5, marginTop:2, marginBottom:0 }}>
           Weekdienst automatisch (CP-SAT) · weekenddienst handmatig · gescheiden saldi
         </p>
       </div>

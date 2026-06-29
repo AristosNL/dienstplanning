@@ -9,11 +9,8 @@ import { useState } from "react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "./firebase";
 import { CalendarDays, LogIn, Loader2, AlertCircle, MailCheck } from "lucide-react";
+import C from "./tokens";
 
-const C = {
-  brand:"#1d4ed8", brandDk:"#1e3a8a", ink:"#0f172a", sub:"#475569",
-  mute:"#94a3b8", line:"#e2e8f0", panel:"#f8fafc", err:"#dc2626", ok:"#16a34a",
-};
 
 const ERR_NL = {
   "auth/invalid-email": "Ongeldig e-mailadres.",
@@ -57,7 +54,7 @@ export default function Login() {
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
-                  background:`linear-gradient(135deg, ${C.brand} 0%, ${C.brandDk} 100%)`,
+                  background:`linear-gradient(160deg, ${C.sidebarBg} 0%, ${C.brand} 100%)`,
                   fontFamily:"ui-sans-serif, system-ui, sans-serif", padding:16 }}>
       <div style={{ width:"100%", maxWidth:380, background:"#fff", borderRadius:16,
                     boxShadow:"0 24px 60px rgba(0,0,0,0.25)", overflow:"hidden" }}>
