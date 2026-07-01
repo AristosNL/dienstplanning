@@ -11,7 +11,7 @@ import { useState, Fragment } from "react";
 import {
   Settings, Plus, Pencil, Trash2, Check, X,
   CalendarClock, Sun, Sunset, Users, Upload, FileText, AlertCircle, CheckCircle2,
-  CalendarDays, Copy, Loader2,
+  CalendarDays, Copy, Loader2, Search,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -227,6 +227,7 @@ export default function Admin() {
     activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
     requirements, setRequirements, clearRequirements, solverUrl,
     returnedReqs, clearArtsPlanning, dienstCarry, clearDienstCarry,
+    clearDienstYear, dienstWeekday, dienstWeekend,
     staff, publishAgendas, publishStatus,
   } = useApp();
 
@@ -240,6 +241,14 @@ export default function Admin() {
   const [importMsg,    setImportMsg]    = useState("");
   const [clearMsg,     setClearMsg]     = useState("");
   const [carryMsg,     setCarryMsg]     = useState("");
+  const [yearMsg,       setYearMsg]      = useState("");
+  const yearOptions = [...new Set([
+    new Date().getFullYear(),
+    ...Object.keys(dienstWeekday).map(d => parseInt(d.slice(0,4))),
+    ...Object.keys(dienstWeekend).map(d => parseInt(d.slice(0,4))),
+  ])].sort();
+  const [clearYear, setClearYear] = useState(new Date().getFullYear());
+  const [showRaw, setShowRaw] = useState(false);
   const [publishMsg,   setPublishMsg]   = useState("");
 
   const reqCount = Object.values(requirements)
@@ -405,37 +414,161 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* FAIRNESS CARRY-IN WISSEN */}
+        {/* DIENSTPLANNING NULSTELLEN */}
         <div style={{ borderRadius:12, background:C.white, border:`1px solid ${C.line}`, overflow:"hidden" }}>
           <div style={{ padding:"13px 18px", borderBottom:`1px solid ${C.line}`,
                         display:"flex", alignItems:"center", gap:8 }}>
             <Trash2 size={15} color={C.brand}/>
             <h2 style={{ fontWeight:700, fontSize:15, color:C.ink, margin:0 }}>
-              Fairness — carry-in wissen
+              Dienstplanning nulstellen
             </h2>
           </div>
-          <div style={{ padding:"16px 18px" }}>
-            <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 14px" }}>
-              Het startsaldo (carry-in) van de Dienstplanning-fairness staat los van de geplande
-              diensten. Een leeg rooster kan toch een startsaldo tonen — wis dat hier voor testen.
-            </p>
-            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-              <Btn danger onClick={() => {
-                clearDienstCarry();
-                setCarryMsg("Carry-in gewist — fairness-grafieken starten nu op 0.");
-              }}>
-                <Trash2 size={13}/> Wis fairness carry-in
-              </Btn>
-              <span style={{ fontSize:11.5, color:C.mute }}>
-                Huidig: {Object.keys(dienstCarry.weekday||{}).length + Object.keys(dienstCarry.weekend||{}).length} startwaarden opgeslagen.
-              </span>
-              {carryMsg && (
-                <span style={{ fontSize:12, color:"#166534", display:"inline-flex", alignItems:"center", gap:4 }}>
-                  <CheckCircle2 size={13}/> {carryMsg}
+          <div style={{ padding:"16px 18px", display:"flex", flexDirection:"column", gap:16 }}>
+
+            {/* carry-in */}
+            <div>
+              <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 10px" }}>
+                Het startsaldo (carry-in) van de Dienstplanning-fairness staat los van de geplande
+                diensten. Een leeg rooster kan toch een startsaldo tonen — wis dat hier voor testen.
+              </p>
+              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <Btn danger onClick={() => {
+                  clearDienstCarry();
+                  setCarryMsg("Carry-in gewist — fairness-grafieken starten nu op 0.");
+                }}>
+                  <Trash2 size={13}/> Wis fairness carry-in
+                </Btn>
+                <span style={{ fontSize:11.5, color:C.mute }}>
+                  Huidig: {Object.keys(dienstCarry.weekday||{}).length + Object.keys(dienstCarry.weekend||{}).length} startwaarden opgeslagen.
                 </span>
-              )}
+                {carryMsg && (
+                  <span style={{ fontSize:12, color:"#166534", display:"inline-flex", alignItems:"center", gap:4 }}>
+                    <CheckCircle2 size={13}/> {carryMsg}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* volledig jaar wissen */}
+            <div style={{ paddingTop:16, borderTop:`1px solid ${C.line}` }}>
+              <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 10px" }}>
+                De fairness-grafiek telt het <strong>hele jaar</strong>, terwijl de Dienstplanning-navigator
+                maar een paar weken tegelijk toont. Toewijzingen buiten dat zichtbare venster tellen
+                dus wél mee, ook als de weken die je hebt gecontroleerd leeg leken. Wis hier in één
+                keer alle weekdienst- én weekenddienst-toewijzingen voor een heel jaar.
+              </p>
+              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                <select value={clearYear} onChange={e => setClearYear(e.target.value)}
+                  style={{ borderRadius:6, border:`1px solid ${C.line}`, padding:"6px 10px",
+                           fontSize:12.5, color:C.ink, background:"#fff" }}>
+                  {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <Btn danger onClick={() => {
+                  const { removedWd, removedWe } = clearDienstYear(clearYear);
+                  setYearMsg(`${removedWd} weekdienst- en ${removedWe} weekenddienst-dagen gewist voor ${clearYear}.`);
+                }}>
+                  <Trash2 size={13}/> Wis heel jaar {clearYear}
+                </Btn>
+                {yearMsg && (
+                  <span style={{ fontSize:12, color:"#166534", display:"inline-flex", alignItems:"center", gap:4 }}>
+                    <CheckCircle2 size={13}/> {yearMsg}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* RUWE DATA — DIAGNOSE */}
+        <div style={{ borderRadius:12, background:C.white, border:`1px solid ${C.line}`, overflow:"hidden" }}>
+          <div style={{ padding:"13px 18px", borderBottom:`1px solid ${C.line}`,
+                        display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}
+               onClick={() => setShowRaw(v => !v)}>
+            <Search size={15} color={C.brand}/>
+            <h2 style={{ fontWeight:700, fontSize:15, color:C.ink, margin:0 }}>
+              Diagnose — ruwe dienst-toewijzingen
+            </h2>
+            <span style={{ marginLeft:"auto", fontSize:11.5, color:C.mute }}>
+              {Object.keys(dienstWeekday).length + Object.keys(dienstWeekend).length} totaal · {showRaw ? "verberg" : "toon"}
+            </span>
+          </div>
+          {showRaw && (
+            <div style={{ padding:"14px 18px" }}>
+              <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 12px" }}>
+                Dit is exact wat er in Firestore staat, ongeacht of de datum in een zichtbare
+                kolom van de Dienstplanning-navigator valt. <span style={{ color:"#dc2626", fontWeight:600 }}>Rood</span> =
+                datum valt niet op een geldige dag voor die tabel (weekdienst hoort ma–vr,
+                weekenddienst hoort za/zo) — zo'n entry verschijnt <strong>nooit</strong> in het
+                rooster maar telt wél mee in de fairness-som.
+              </p>
+              {(() => {
+                const staffById = Object.fromEntries(staff.map(s => [s.id, s.name]));
+                const wdRows = Object.entries(dienstWeekday).sort(([a],[b]) => a<b?-1:1);
+                const weRows = Object.entries(dienstWeekend).sort(([a],[b]) => a<b?-1:1);
+                const dow = (dateStr) => {
+                  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return -1;
+                  return new Date(dateStr + "T00:00:00").getDay();
+                };
+                const wdAnomaly = (d) => { const n=dow(d); return n===-1 || n===0 || n===6; };
+                const weAnomaly = (d) => { const n=dow(d); return n===-1 || (n>=1 && n<=5); };
+                const wdAnomalyCount = wdRows.filter(([d]) => wdAnomaly(d)).length;
+                const weAnomalyCount = weRows.filter(([d]) => weAnomaly(d)).length;
+                return (
+                  <>
+                    {(wdAnomalyCount > 0 || weAnomalyCount > 0) && (
+                      <div style={{ marginBottom:12, padding:"8px 12px", borderRadius:8,
+                                    background:"#fef2f2", border:"1px solid #fecaca",
+                                    fontSize:12, color:"#991b1b" }}>
+                        Gevonden: {wdAnomalyCount} weekdienst- en {weAnomalyCount} weekenddienst-entries
+                        op een datum die nooit in het rooster wordt getoond. Dit verklaart
+                        vermoedelijk de resterende fairness-getallen.
+                      </div>
+                    )}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:6 }}>
+                        Weekdienst ({wdRows.length})
+                      </div>
+                      <div style={{ maxHeight:260, overflowY:"auto", border:`1px solid ${C.line}`, borderRadius:6 }}>
+                        {wdRows.length === 0 && (
+                          <div style={{ padding:10, fontSize:12, color:C.mute }}>Geen entries.</div>
+                        )}
+                        {wdRows.map(([date, v]) => (
+                          <div key={date} style={{ display:"flex", justifyContent:"space-between", gap:8,
+                                                    padding:"5px 10px", fontSize:11.5,
+                                                    borderBottom:`1px solid ${C.line}`,
+                                                    background: wdAnomaly(date) ? "#fef2f2" : "transparent" }}>
+                            <code style={{ color: wdAnomaly(date) ? "#dc2626" : C.sub }}>{date}</code>
+                            <span style={{ color:C.ink }}>{staffById[v?.staffId] || v?.staffId || "?"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:12, fontWeight:700, color:C.ink, marginBottom:6 }}>
+                        Weekenddienst ({weRows.length})
+                      </div>
+                      <div style={{ maxHeight:260, overflowY:"auto", border:`1px solid ${C.line}`, borderRadius:6 }}>
+                        {weRows.length === 0 && (
+                          <div style={{ padding:10, fontSize:12, color:C.mute }}>Geen entries.</div>
+                        )}
+                        {weRows.map(([date, v]) => (
+                          <div key={date} style={{ display:"flex", justifyContent:"space-between", gap:8,
+                                                    padding:"5px 10px", fontSize:11.5,
+                                                    borderBottom:`1px solid ${C.line}`,
+                                                    background: weAnomaly(date) ? "#fef2f2" : "transparent" }}>
+                            <code style={{ color: weAnomaly(date) ? "#dc2626" : C.sub }}>{date}</code>
+                            <span style={{ color:C.ink }}>{staffById[v?.staffId] || v?.staffId || "?"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* AGENDA'S PUBLICEREN */}

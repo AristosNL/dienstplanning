@@ -272,6 +272,28 @@ export function AppProvider({ children }) {
     return removed;
   };
 
+  /* Wist ALLE weekdienst- en weekenddienst-toewijzingen voor een heel jaar
+     (niet alleen de zichtbare weken in de navigator). Los van carry-in —
+     dit raakt de daadwerkelijke roostertoewijzingen. Retourneert het aantal
+     verwijderde dagen zodat de UI feedback kan geven. */
+  const clearDienstYear = (year) => {
+    const yr = String(year);
+    let removedWd = 0, removedWe = 0;
+    for (const d of Object.keys(dienstWeekday)) if (d.startsWith(yr)) removedWd++;
+    for (const d of Object.keys(dienstWeekend)) if (d.startsWith(yr)) removedWe++;
+    setDienstWeekday(p => {
+      const n = {};
+      for (const [d, v] of Object.entries(p)) if (!d.startsWith(yr)) n[d] = v;
+      return n;
+    });
+    setDienstWeekend(p => {
+      const n = {};
+      for (const [d, v] of Object.entries(p)) if (!d.startsWith(yr)) n[d] = v;
+      return n;
+    });
+    return { removedWd, removedWe };
+  };
+
   /* Publiceer voor elke medewerker een actuele .ics naar Firestore
      publicAgenda/{staffId} — wordt live geserveerd via de Netlify Function
      op /agenda/{staffId}.ics. Retourneert {ok, failed} met staffId-lijsten. */
@@ -443,6 +465,7 @@ export function AppProvider({ children }) {
       solverUrl, setSolverUrl,
       requirements, setRequirements, clearRequirements,
       returnedReqs, setReturnedReqs, poliReqs, setPoliReqs, clearArtsPlanning,
+      clearDienstYear,
       publishAgendas, publishStatus,
       loaded, cloud, firebaseReady,
       today,
