@@ -1,0 +1,16 @@
+# netlify.toml
+#
+# LET OP: als er al een netlify.toml in de projectroot staat (bijv. met
+# build-instellingen voor Vite), voeg dan alleen het [[redirects]]-blok
+# hieronder toe aan dat bestaande bestand — overschrijf het niet.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# /agenda/rolendis.ics  ->  Netlify Function die live uit Firestore leest
+[[redirects]]
+  from = "/agenda/:slug.ics"
+  to   = "/.netlify/functions/agenda/:slug"
+  status = 200

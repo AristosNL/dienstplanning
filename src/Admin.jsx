@@ -11,6 +11,7 @@ import { useState, Fragment } from "react";
 import {
   Settings, Plus, Pencil, Trash2, Check, X,
   CalendarClock, Sun, Sunset, Users, Upload, FileText, AlertCircle, CheckCircle2,
+  CalendarDays, Copy, Loader2,
 } from "lucide-react";
 import { useApp, ACTIVITY_COLORS } from "./AppContext";
 import ConfirmDialog from "./ConfirmDialog";
@@ -225,7 +226,8 @@ export default function Admin() {
   const {
     activities, addActivity, updateActivity, deleteActivity, activityUsage, activityStaff,
     requirements, setRequirements, clearRequirements, solverUrl,
-    returnedReqs, clearArtsPlanning,
+    returnedReqs, clearArtsPlanning, dienstCarry, clearDienstCarry,
+    staff, publishAgendas, publishStatus,
   } = useApp();
 
   const [toDelAct,   setToDelAct] = useState(null);
@@ -237,6 +239,8 @@ export default function Admin() {
   const [importStatus, setImportStatus] = useState(null); // null | "busy" | "ok" | "err"
   const [importMsg,    setImportMsg]    = useState("");
   const [clearMsg,     setClearMsg]     = useState("");
+  const [carryMsg,     setCarryMsg]     = useState("");
+  const [publishMsg,   setPublishMsg]   = useState("");
 
   const reqCount = Object.values(requirements)
     .reduce((n, v) => n + (v.AM?.length || 0) + (v.PM?.length || 0), 0);
@@ -398,6 +402,96 @@ export default function Admin() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* FAIRNESS CARRY-IN WISSEN */}
+        <div style={{ borderRadius:12, background:C.white, border:`1px solid ${C.line}`, overflow:"hidden" }}>
+          <div style={{ padding:"13px 18px", borderBottom:`1px solid ${C.line}`,
+                        display:"flex", alignItems:"center", gap:8 }}>
+            <Trash2 size={15} color={C.brand}/>
+            <h2 style={{ fontWeight:700, fontSize:15, color:C.ink, margin:0 }}>
+              Fairness — carry-in wissen
+            </h2>
+          </div>
+          <div style={{ padding:"16px 18px" }}>
+            <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 14px" }}>
+              Het startsaldo (carry-in) van de Dienstplanning-fairness staat los van de geplande
+              diensten. Een leeg rooster kan toch een startsaldo tonen — wis dat hier voor testen.
+            </p>
+            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+              <Btn danger onClick={() => {
+                clearDienstCarry();
+                setCarryMsg("Carry-in gewist — fairness-grafieken starten nu op 0.");
+              }}>
+                <Trash2 size={13}/> Wis fairness carry-in
+              </Btn>
+              <span style={{ fontSize:11.5, color:C.mute }}>
+                Huidig: {Object.keys(dienstCarry.weekday||{}).length + Object.keys(dienstCarry.weekend||{}).length} startwaarden opgeslagen.
+              </span>
+              {carryMsg && (
+                <span style={{ fontSize:12, color:"#166534", display:"inline-flex", alignItems:"center", gap:4 }}>
+                  <CheckCircle2 size={13}/> {carryMsg}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* AGENDA'S PUBLICEREN */}
+        <div style={{ borderRadius:12, background:C.white, border:`1px solid ${C.line}`, overflow:"hidden" }}>
+          <div style={{ padding:"13px 18px", borderBottom:`1px solid ${C.line}`,
+                        display:"flex", alignItems:"center", gap:8 }}>
+            <CalendarDays size={15} color={C.brand}/>
+            <h2 style={{ fontWeight:700, fontSize:15, color:C.ink, margin:0 }}>
+              Agenda's publiceren
+            </h2>
+          </div>
+          <div style={{ padding:"16px 18px" }}>
+            <p style={{ fontSize:12.5, color:C.sub, margin:"0 0 14px" }}>
+              Publiceert voor elke medewerker een actuele .ics-link die een agenda-app (Outlook,
+              Google Agenda, Apple Agenda) kan abonneren. Klik na elke roosterwijziging op
+              publiceren zodat de agenda's up-to-date blijven — de link zelf verandert nooit.
+            </p>
+            <Btn primary onClick={async () => {
+              const { ok, failed } = await publishAgendas();
+              setPublishMsg(
+                failed.length === 0
+                  ? `${ok.length} agenda's gepubliceerd.`
+                  : `${ok.length} gelukt, ${failed.length} mislukt (${failed.join(", ")}).`
+              );
+            }}>
+              {publishStatus === "busy"
+                ? <><Loader2 size={13}/> Bezig…</>
+                : <><CalendarDays size={13}/> Publiceer alle agenda's</>}
+            </Btn>
+            {publishMsg && (
+              <span style={{ marginLeft:10, fontSize:12, color: publishStatus==="err" ? "#991b1b" : "#166534",
+                            display:"inline-flex", alignItems:"center", gap:4 }}>
+                {publishStatus==="err" ? <AlertCircle size={13}/> : <CheckCircle2 size={13}/>} {publishMsg}
+              </span>
+            )}
+
+            <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:4 }}>
+              {staff.map(s => {
+                const url = `${window.location.origin}/agenda/${s.id}.ics`;
+                return (
+                  <div key={s.id} style={{ display:"flex", alignItems:"center", gap:8,
+                                           padding:"6px 10px", borderRadius:6, background:C.panel,
+                                           fontSize:12.5 }}>
+                    <span style={{ fontWeight:600, color:C.ink, minWidth:130 }}>{s.name}</span>
+                    <code style={{ flex:1, color:C.sub, fontSize:11.5, overflow:"hidden",
+                                   textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{url}</code>
+                    <button onClick={() => navigator.clipboard?.writeText(url)}
+                      title="Kopieer link"
+                      style={{ background:"transparent", border:"none", cursor:"pointer",
+                               color:C.brand, lineHeight:0, padding:2 }}>
+                      <Copy size={13}/>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

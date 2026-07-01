@@ -141,6 +141,7 @@ export default function DienstPlanning() {
     setDragId(null);
   };
   const clearWeekend  = () => weekStarts.forEach(s => clearWeekendPair(addDays(s, 5)));
+  const clearWeekday  = () => weekStarts.forEach(st => { for (let i=0;i<5;i++) clearWeekdayDuty(addDays(st, i)); });
 
   const generateWeekday = async () => {
     if (!solverUrl.trim()) { setSolveStatus({ state:"err", msg:"Vul eerst de solver-URL in." }); return; }
@@ -256,6 +257,11 @@ export default function DienstPlanning() {
                          opacity: solveStatus?.state==="busy" ? .6 : 1 }}>
                 {solveStatus?.state==="busy" ? <Loader2 size={13}/> : <Play size={13}/>}
                 Genereer weekdienst
+              </button>
+              <button onClick={clearWeekday}
+                style={{ display:"inline-flex", alignItems:"center", gap:6, borderRadius:6, padding:"6px 10px",
+                         border:`1px solid ${LINE}`, color:MUTE, fontSize:12, fontWeight:600, background:"#fff", cursor:"pointer" }}>
+                <RotateCcw size={13}/> leegmaken
               </button>
             </div>
           </div>

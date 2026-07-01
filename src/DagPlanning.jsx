@@ -28,7 +28,7 @@ const VERSION = "v1";
 const DAYS    = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag"];
 const DAYS_SH = ["ma","di","wo","do","vr"];
 const PERIODS = ["AM","PM"];
-const PER_LBL = { AM:"Mo", PM:"Mi" };       // ochtend / middag, zoals in het papieren rooster
+const PER_LBL = { AM:"Morgen", PM:"Middag" };
 
 /* kleurcodering requirement-badges: okBg=ingepland (groen-tint), opBg=open.
    OK & PBK krijgen dezelfde groen/oranje codering; Poli een blauw-tint open-staat. */
@@ -224,6 +224,7 @@ export default function DagPlanning() {
   const [drag,      setDrag]      = useState(null);
   const [solveStatus, setSolveStatus] = useState(null); // null|"busy"|"ok"|"err"
   const [solveMsg,    setSolveMsg]    = useState("");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   /* artsen automatisch matchen aan vereisten via CP-SAT solver */
   const generateArtsRooster = async () => {
@@ -386,7 +387,7 @@ export default function DagPlanning() {
         </div>
 
         {/* generate-banner: zichtbaar als er vereisten geladen zijn */}
-        {reqCount > 0 && (
+        {reqCount > 0 && !bannerDismissed && (
           <div style={{ padding:"0 0 10px" }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap",
                           padding:"9px 14px", borderRadius:8, background:"#fff7ed",
@@ -421,6 +422,12 @@ export default function DagPlanning() {
                   {solveMsg}
                 </span>
               )}
+              <button onClick={() => setBannerDismissed(true)}
+                title="Melding verbergen"
+                style={{ marginLeft:"auto", lineHeight:0, color:"#9a3412", flexShrink:0,
+                         background:"transparent", border:"none", cursor:"pointer", padding:2 }}>
+                <X size={14}/>
+              </button>
             </div>
           </div>
         )}
@@ -475,6 +482,7 @@ export default function DagPlanning() {
                   for (let q=0; q<nPoli; q++) reqs.push("Poli");
                   return (
                     <th key={d+p} style={{ ...thBase, padding:"2px 4px", fontSize:10, color:C.sub,
+                                           verticalAlign:"top",
                                            borderLeft: p==="AM" ? `2px solid ${C.line}` : "none" }}>
                       <span style={{ display:"inline-flex", alignItems:"center", gap:2 }}>
                         {p==="AM" ? <Sun size={10}/> : <Sunset size={10}/>}{PER_LBL[p]}

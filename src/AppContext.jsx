@@ -9,11 +9,11 @@
  */
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
 import { db, firebaseReady } from "./firebase";
 
 const uuid  = () => crypto.randomUUID();
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = () => { const d=new Date(); const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${day}`; };
 
 /* vaste ids voor de twee dienst-activiteiten (DienstPlanning filtert hierop) */
 export const ACT_WEEKDAY = "act_dienst_weekdag";
@@ -110,7 +110,7 @@ const INITIAL_NOTES = {
 
 /* -- Dienst: week- en weekenddienst ---------------------------- */
 export const DIENST_WEEK_STARTS = ["2026-06-22","2026-06-29","2026-07-06","2026-07-13"];
-const _dwd = (start, off) => { const d=new Date(start+"T00:00:00"); d.setDate(d.getDate()+off); return d.toISOString().slice(0,10); };
+const _dwd = (start, off) => { const d=new Date(start+"T00:00:00"); d.setDate(d.getDate()+off); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),dy=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${dy}`; };
 
 const WEEKDAY_SOLUTION = [
   ["dijkst","dijkst","dijkst","citgez","citgez"],
@@ -129,6 +129,81 @@ const INITIAL_DIENST_CARRY = {
   weekday: { citgez:12, jippes:10, dijkst:11 },
   weekend: { citgez:4,  jippes:3,  dijkst:5  },
 };
+
+/* ── Per-persoon ICS-agenda genereren ──────────────────────────────
+   Combineert dagplanning-toewijzingen (Mo 08:00-13:00 / Mi 13:00-16:00),
+   weekdienst en weekenddienst (hele dag) voor één medewerker tot één
+   geldig .ics-bestand. Wordt gepubliceerd naar Firestore publicAgenda/{id}
+   en live geserveerd door de Netlify Function op /agenda/{id}.ics. */
+const PERIOD_TIMES = { AM: ["08:00:00", "13:00:00"], PM: ["13:00:00", "16:00:00"] };
+
+function icsEscape(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;");
+}
+
+export function buildPersonICS(staffId, staffName, dagplanning, activities, dienstWeekday, dienstWeekend) {
+  const actById = Object.fromEntries(activities.map(a => [a.id, a]));
+  const lines = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//AfdelingsPlan//NL",
+    "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    `X-WR-CALNAME:${icsEscape(staffName)} — AfdelingsPlan`,
+  ];
+
+  const addTimed = (dateStr, period, summary, uidSuffix) => {
+    const [hS, hE] = PERIOD_TIMES[period];
+    const d = dateStr.replace(/-/g, "");
+    lines.push("BEGIN:VEVENT");
+    lines.push(`UID:afdplan-${staffId}-${dateStr}-${period}-${uidSuffix}@afdelingsplan`);
+    lines.push(`DTSTART:${d}T${hS.replace(/:/g,"")}`);
+    lines.push(`DTEND:${d}T${hE.replace(/:/g,"")}`);
+    lines.push(`SUMMARY:${icsEscape(summary)}`);
+    lines.push("END:VEVENT");
+  };
+  const addAllDay = (dateStr, summary, uidSuffix) => {
+    const start = dateStr.replace(/-/g, "");
+    const end   = (() => { const dt = new Date(dateStr+"T00:00:00"); dt.setDate(dt.getDate()+1);
+      const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,"0"),dd=String(dt.getDate()).padStart(2,"0");
+      return `${y}${m}${dd}`; })();
+    lines.push("BEGIN:VEVENT");
+    lines.push(`UID:afdplan-${staffId}-${dateStr}-${uidSuffix}@afdelingsplan`);
+    lines.push(`DTSTART;VALUE=DATE:${start}`);
+    lines.push(`DTEND;VALUE=DATE:${end}`);
+    lines.push(`SUMMARY:${icsEscape(summary)}`);
+    lines.push("END:VEVENT");
+  };
+
+  /* Dagplanning: sleutel = weekMaandag__staffId__dayIdx__period */
+  for (const [key, val] of Object.entries(dagplanning)) {
+    if (!val?.activityId) continue;
+    const [wkMon, sid, dayIdxStr, period] = key.split("__");
+    if (sid !== staffId) continue;
+    const dayIdx = parseInt(dayIdxStr);
+    const d = new Date(wkMon + "T00:00:00"); d.setDate(d.getDate() + dayIdx);
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dy=String(d.getDate()).padStart(2,"0");
+    const dateStr = `${y}-${m}-${dy}`;
+
+    if (val.activityId === "VRIJ") {
+      addAllDay(dateStr, "Vrij", `vrij-${period}`);
+    } else if (val.activityId === "X") {
+      continue; // "niet werkzaam" — geen agenda-item
+    } else {
+      const label = actById[val.activityId]?.label || actById[val.activityId]?.code || val.activityId;
+      addTimed(dateStr, period, label, "dag");
+    }
+  }
+
+  /* Weekdienst — hele dag */
+  for (const [dateStr, a] of Object.entries(dienstWeekday || {})) {
+    if (a?.staffId === staffId) addAllDay(dateStr, "Weekdienst", "weekdag");
+  }
+  /* Weekenddienst — hele dag */
+  for (const [dateStr, a] of Object.entries(dienstWeekend || {})) {
+    if (a?.staffId === staffId) addAllDay(dateStr, "Weekenddienst", "weekend");
+  }
+
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
 
 /* -- Migratie: oude masterdata (met skills) -> nieuw model ----- */
 const SKILL_TO_ACT = {
@@ -165,6 +240,8 @@ export function AppProvider({ children }) {
   const [dienstWeekday, setDienstWeekday] = useState(INITIAL_DIENST_WEEKDAY);
   const [dienstWeekend, setDienstWeekend] = useState(INITIAL_DIENST_WEEKEND);
   const [dienstCarry, setDienstCarry]     = useState(INITIAL_DIENST_CARRY);
+  /* wis de carry-in (startsaldo) van de fairness-telling — voor testen */
+  const clearDienstCarry = () => setDienstCarry({ weekday:{}, weekend:{} });
   const [solverUrl,   setSolverUrl]       = useState("");
   /* requirements: { "2026-01-05": { AM: ["OK"], PM: ["PBK"] } }
      Geladen via /parse-requirements endpoint; aparte Firestore-doc */
@@ -178,11 +255,14 @@ export function AppProvider({ children }) {
      Retourneert het aantal verwijderde cellen zodat de UI feedback kan geven. */
   const clearArtsPlanning = () => {
     const artsActs = new Set(["act_ok", "act_pbk", "act_poli"]);
-    let removed = 0;
+    /* removed vooraf tellen op de huidige state — setDagplanning's updater-fn
+       loopt pas tijdens Reacts volgende render-cyclus, dus mutatie daarin
+       is hier nog niet zichtbaar als we synchroon een return-waarde nodig hebben */
+    const removed = Object.values(dagplanning).filter(v => artsActs.has(v?.activityId)).length;
     setDagplanning(p => {
       const n = {};
       for (const [k, v] of Object.entries(p)) {
-        if (artsActs.has(v?.activityId)) { removed++; continue; }
+        if (artsActs.has(v?.activityId)) continue;
         n[k] = v;
       }
       return n;
@@ -191,6 +271,33 @@ export function AppProvider({ children }) {
     setPoliReqs({});
     return removed;
   };
+
+  /* Publiceer voor elke medewerker een actuele .ics naar Firestore
+     publicAgenda/{staffId} — wordt live geserveerd via de Netlify Function
+     op /agenda/{staffId}.ics. Retourneert {ok, failed} met staffId-lijsten. */
+  const [publishStatus, setPublishStatus] = useState(null); // null|"busy"|"done"|"err"
+  const publishAgendas = async () => {
+    if (!firebaseReady || !db) {
+      setPublishStatus("err");
+      return { ok:[], failed: staff.map(s=>s.id), reason:"Geen Firestore-verbinding" };
+    }
+    setPublishStatus("busy");
+    const ok = [], failed = [];
+    for (const s of staff) {
+      try {
+        const ics = buildPersonICS(s.id, s.name, dagplanning, activities, dienstWeekday, dienstWeekend);
+        await setDoc(doc(collection(db, "publicAgenda"), s.id), {
+          ics, name:s.name, updatedAt: new Date().toISOString(),
+        });
+        ok.push(s.id);
+      } catch (e) {
+        failed.push(s.id);
+      }
+    }
+    setPublishStatus(failed.length === 0 ? "done" : "err");
+    return { ok, failed };
+  };
+
   const [loaded,      setLoaded]          = useState(false);
   const [cloud,       setCloud]           = useState(firebaseReady ? "verbinden" : "lokaal");
 
@@ -329,13 +436,14 @@ export function AppProvider({ children }) {
       staff, addStaff, updateStaff, deleteStaff, staffPlanUsage,
       dagplanning, setDagAssign, clearDagAssign,
       notes, addNote, updateNote, deleteNote,
-      dienstWeekday, dienstWeekend, dienstCarry,
+      dienstWeekday, dienstWeekend, dienstCarry, clearDienstCarry,
       setWeekdayDuty, clearWeekdayDuty, setWeekendDuty, clearWeekendDuty,
       setWeekendPair, clearWeekendPair,
       weekdayDutyCount, weekendDutyCount,
       solverUrl, setSolverUrl,
       requirements, setRequirements, clearRequirements,
       returnedReqs, setReturnedReqs, poliReqs, setPoliReqs, clearArtsPlanning,
+      publishAgendas, publishStatus,
       loaded, cloud, firebaseReady,
       today,
     }}>
